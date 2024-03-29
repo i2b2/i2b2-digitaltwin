@@ -1,16 +1,16 @@
-/*********************************************************
-*           SQL SERVER SCRIPT TO CREATE DATA TABLES 
-*            FOR "DIGITAL TWIN" DERIVED FACT TOOLS
-*               Last updated 03/2024
-**********************************************************/
-
-/*********************************************************
-*           LOYALTY COHORT - See this publication:
-* Klann JG, Henderson DW, Morris M, et al. A broadly applicable approach to enrich 
-* electronic-health-record cohorts by identifying patients with complete data: a 
-* multisite evaluation. J Am Med Inform Assoc Published Online First: 25 August 2023. 
-* doi:10.1093/jamia/ocad166
-**********************************************************/
+-- ********************************************************
+-- *           SQL SERVER SCRIPT TO CREATE DATA TABLES 
+-- *            FOR "DIGITAL TWIN" DERIVED FACT TOOLS
+-- *               Last updated 03/2024
+-- **********************************************************/
+-- 
+-- ********************************************************
+-- *           LOYALTY COHORT - See this publication:
+-- * Klann JG, Henderson DW, Morris M, et al. A broadly applicable approach to enrich 
+-- * electronic-health-record cohorts by identifying patients with complete data: a 
+-- * multisite evaluation. J Am Med Inform Assoc Published Online First: 25 August 2023. 
+-- * doi:10.1093/jamia/ocad166
+-- **********************************************************/
 
 
 
