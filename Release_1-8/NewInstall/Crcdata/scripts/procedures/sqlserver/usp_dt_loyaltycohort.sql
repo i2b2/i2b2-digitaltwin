@@ -2,7 +2,7 @@
 --prepare user-defined type (table variable for cohort filtering) 
 --if procedure already exists, it must be dropped first if changes are made to the user-defined type, as the procedure references the udt
 
-IF OBJECT_ID(N'DBO.USP_DT_LOYALTYCOHORT') IS NOT NULL DROP PROCEDURE DBO.USP_DT_LOYALTYCOHORT;
+IF OBJECT_ID(N'DBO.USP_DT_LOYALTYCOHORT') IS NOT NULL DROP PROCEDURE DBO.USP_DT_LOYALTYCOHORT;;
 
 --DROP TYPE DBO.UDT_DT_LOYALTY_COHORTFILTER;
 
