@@ -10,21 +10,29 @@ IF OBJECT_ID(N'DBO.USP_DT_LOYALTYCOHORT') IS NOT NULL DROP PROCEDURE DBO.USP_DT_
 --GO
 
 
+-- ********************************************************
+-- *           LOYALTY COHORT - See this publication:
+-- * Klann JG, Henderson DW, Morris M, et al. A broadly applicable approach to enrich 
+-- * electronic-health-record cohorts by identifying patients with complete data: a 
+-- * multisite evaluation. J Am Med Inform Assoc Published Online First: 25 August 2023. 
+-- * doi:10.1093/jamia/ocad166
+-- **********************************************************/
+--
 -- Implements a loyalty cohort algorithm with the same general design defined in 
 --   "External Validation of an Algorithm to Identify Patients with High Data-Completeness in Electronic Health Records for Comparative Effectiveness Research" by Lin et al.
 -- Written primarily by Darren Henderson with contributions FROM: Jeff Klann, PhD; Andrew Cagan; Barbara Benoit
 -- 
 -- Calculates 20 variables over the baseline period and computes an overall score, the highest scoring individuals are an approximation of those most likely present for future follow-up
--- This script accepts an index_date and looks back n years previous to that date (baseline period). For consistency across sites, let us all use the index date of 2/1/2021
+-- This script accepts an index_date and looks back n years previous to that date (baseline period). 
 -- 
 -- To run, EXEC USP_DT_LOYALTYCOHORT @indexDate = '20210201', @SITE='STE', @LOOKBACK_YEARS=1,  @demographic_facts=0, @GENDERED=0, @filter_by_existing_cohort=0, @COHORT_FILTER=@cfilter, @output=0
 -- This will create two tables on your db, DT_LOYALTY_RESULT (line level data with variables and score presented for each patient) and DT_LOYALTY_RESULT_SUMMARY (summary table).
 -- 
--- It is ok under the SHRINE IRB to export this: select * FROM DT_LOYALTY_RESULT_SUMMARY where SUMMARY_DESCRIPTION='PERCENT SUBJECTS'
--- It is percentAGEs, a predictive score, and an obfuscated count of total patients.
+-- Exporting this is compatible with most SHRINE IRBs: select * FROM DT_LOYALTY_RESULT_SUMMARY where SUMMARY_DESCRIPTION='PERCENT SUBJECTS'
+-- It is percentages, a predictive score, and an obfuscated count of total patients.
 -- 
 -- ***** Standard i2b2 table naming conventions are used - Observation_fact, concept_dimension, patient_dimension.
--- ***** Follow the README located here for more information on installing and running: https://github.com/i2b2plugins/loyalty_cohort 
+-- ***** Follow the README for more information on installing and running.
 -- 
 -- Though attempts were made to make this query as generally applicable as possible throughout, you may need to review "POSSIBLE EDITS". 
 -- We left comments about throughout the body of the script. 
@@ -92,7 +100,7 @@ DECLARE @COHORT_N INT = (SELECT COUNT(*) FROM #COHORT_FILTER)
 DECLARE @GENDER_YN CHAR(1) = IIF(@GENDERED=0,'N','Y')
 DECLARE @OUTPUT_YN CHAR(1) = IIF(@output=0,'N','Y')
 
-RAISERROR(N'Thank you for your participation. Please contact darren.henderson@uky.edu with any questions.', 1, 1) with nowait;
+RAISERROR(N'i2b2 Loyalty Cohort. See doi:10.1093/jamia/ocad166.', 1, 1) with nowait;
 RAISERROR(N'Please be prepared to share these debug messages if your site runs INTO any issues.', 1, 1) with nowait;
 RAISERROR(N'STARTING ANALYSIS (COHORT_FILTER RECORDS=%d) -- SITE=%s, LOOKBACK_YR=%d, GENDER_DENOMINATORS=%s, OUTPUT=%s', 1, 1,@COHORT_N,@SITE,@LOOKBACK_YEARS,@gender_yn,@output_yn) with nowait;
 
