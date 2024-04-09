@@ -9,8 +9,7 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_komap_generate_phenotype') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_generate_phenotype;
-GO
+IF OBJECT_ID(N'dbo.usp_dt_komap_generate_phenotype') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_generate_phenotype;;
 
 
 CREATE PROCEDURE dbo.usp_dt_komap_generate_phenotype
@@ -71,5 +70,4 @@ insert into dbo.DERIVED_FACT (encounter_num, patient_num, concept_cd, provider_i
 
 
 END
-GO
 

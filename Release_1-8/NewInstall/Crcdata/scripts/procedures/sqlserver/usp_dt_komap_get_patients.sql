@@ -9,8 +9,7 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_komap_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_prepare_data;
-GO
+IF OBJECT_ID(N'dbo.usp_dt_komap_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_prepare_data;;
 
 
 CREATE PROCEDURE dbo.usp_dt_komap_get_patients
@@ -167,5 +166,4 @@ insert into dbo.dt_komap_base_cohort (patient_num)
 
 
 END
-GO
 

@@ -9,8 +9,7 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_data;
-GO
+IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_data;;
 
 
 CREATE PROCEDURE dbo.usp_dt_keser_prepare_data
@@ -254,4 +253,4 @@ insert into dbo.dt_keser_phenotype (phenotype)
 
 
 END
-GO
+

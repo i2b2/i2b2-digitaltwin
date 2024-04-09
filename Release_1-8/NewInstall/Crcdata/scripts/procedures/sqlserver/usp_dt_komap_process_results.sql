@@ -9,8 +9,7 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_komap_process_results') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_process_results;
-GO
+IF OBJECT_ID(N'dbo.usp_dt_komap_process_results') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_process_results;;
 
 
 CREATE PROCEDURE dbo.usp_dt_komap_process_results
@@ -273,5 +272,4 @@ update dbo.dt_komap_phenotype
 	
 
 END
-GO
 

@@ -9,8 +9,7 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_mappings') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_mappings;
-GO
+IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_mappings') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_mappings;;
 
 
 CREATE PROCEDURE dbo.usp_dt_keser_prepare_mappings
@@ -121,5 +120,4 @@ insert into dbo.dt_keser_concept_feature (concept_cd, feature_num)
 
 
 END
-GO
 
