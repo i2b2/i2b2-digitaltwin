@@ -318,20 +318,18 @@ create table dbo.dt_keser_phenotype_feature (
 -- Truncate tables.
 --------------------------------------------------------------------------------
 
-/*
-truncate table dbo.dt_keser_import_concept_feature;
-truncate table dbo.dt_keser_feature;
-truncate table dbo.dt_keser_concept_feature;
-truncate table dbo.dt_keser_concept_children;
-truncate table dbo.dt_keser_patient_partition;
-truncate table dbo.dt_keser_patient_period_feature;
-truncate table dbo.dt_keser_feature_count;
-truncate table dbo.dt_keser_feature_cooccur_temp;
-truncate table dbo.dt_keser_feature_cooccur;
-truncate table dbo.dt_keser_embedding;
-truncate table dbo.dt_keser_phenotype;
-truncate table dbo.dt_keser_phenotype_feature;
-*/
+-- truncate table dbo.dt_keser_import_concept_feature;
+-- truncate table dbo.dt_keser_feature;
+-- truncate table dbo.dt_keser_concept_feature;
+-- truncate table dbo.dt_keser_concept_children;
+-- truncate table dbo.dt_keser_patient_partition;
+-- truncate table dbo.dt_keser_patient_period_feature;
+-- truncate table dbo.dt_keser_feature_count;
+-- truncate table dbo.dt_keser_feature_cooccur_temp;
+-- truncate table dbo.dt_keser_feature_cooccur;
+-- truncate table dbo.dt_keser_embedding;
+-- truncate table dbo.dt_keser_phenotype;
+-- truncate table dbo.dt_keser_phenotype_feature;
 
 
 
@@ -500,57 +498,54 @@ create table dbo.dt_komap_phenotype_patient (
 -- Create a DERIVED_FACT table if one does not alreay exist.
 --------------------------------------------------------------------------------
 
-/*
-create table dbo.DERIVED_FACT(
-	ENCOUNTER_NUM int NOT NULL,
-	PATIENT_NUM int NOT NULL,
-	CONCEPT_CD varchar(50) NOT NULL,
-	PROVIDER_ID varchar(50) NOT NULL,
-	START_DATE datetime NOT NULL,
-	MODIFIER_CD varchar(100) NOT NULL,
-	INSTANCE_NUM int NOT NULL,
-	VALTYPE_CD varchar(50),
-	TVAL_CHAR varchar(255),
-	NVAL_NUM decimal(18,5),
-	VALUEFLAG_CD varchar(50),
-	QUANTITY_NUM decimal(18,5),
-	UNITS_CD varchar(50),
-	END_DATE datetime NULL,
-	LOCATION_CD varchar(50),
-	OBSERVATION_BLOB text NULL,
-	CONFIDENCE_NUM decimal(18,5),
-	UPDATE_DATE datetime NULL,
-	DOWNLOAD_DATE datetime NULL,
-	IMPORT_DATE datetime NULL,
-	SOURCESYSTEM_CD varchar(50),
-	UPLOAD_ID int
-)
-alter table dbo.DERIVED_FACT add primary key (CONCEPT_CD,PATIENT_NUM,ENCOUNTER_NUM,START_DATE,PROVIDER_ID,INSTANCE_NUM,MODIFIER_CD)
-create nonclustered index DF_IDX_CONCEPT_DATE_PATIENT on dbo.DERIVED_FACT  (CONCEPT_CD, START_DATE, PATIENT_NUM)
-create nonclustered index DF_IDX_ENCOUNTER_PATIENT_CONCEPT_DATE on dbo.DERIVED_FACT  (ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, START_DATE)
-create nonclustered index DF_IDX_PATIENT_CONCEPT_DATE on dbo.DERIVED_FACT  (PATIENT_NUM, CONCEPT_CD, START_DATE)
-*/
+--  create table dbo.DERIVED_FACT(
+-- 	ENCOUNTER_NUM int NOT NULL,
+-- 	PATIENT_NUM int NOT NULL,
+-- 	CONCEPT_CD varchar(50) NOT NULL,
+-- 	PROVIDER_ID varchar(50) NOT NULL,
+-- 	START_DATE datetime NOT NULL,
+-- 	MODIFIER_CD varchar(100) NOT NULL,
+-- 	INSTANCE_NUM int NOT NULL,
+-- 	VALTYPE_CD varchar(50),
+-- 	TVAL_CHAR varchar(255),
+-- 	NVAL_NUM decimal(18,5),
+-- 	VALUEFLAG_CD varchar(50),
+-- 	QUANTITY_NUM decimal(18,5),
+-- 	UNITS_CD varchar(50),
+-- 	END_DATE datetime NULL,
+-- 	LOCATION_CD varchar(50),
+-- 	OBSERVATION_BLOB text NULL,
+-- 	CONFIDENCE_NUM decimal(18,5),
+-- 	UPDATE_DATE datetime NULL,
+-- 	DOWNLOAD_DATE datetime NULL,
+-- 	IMPORT_DATE datetime NULL,
+-- 	SOURCESYSTEM_CD varchar(50),
+-- 	UPLOAD_ID int
+-- )
+-- alter table dbo.DERIVED_FACT add primary key (CONCEPT_CD,PATIENT_NUM,ENCOUNTER_NUM,START_DATE,PROVIDER_ID,INSTANCE_NUM,MODIFIER_CD)
+-- create nonclustered index DF_IDX_CONCEPT_DATE_PATIENT on dbo.DERIVED_FACT  (CONCEPT_CD, START_DATE, PATIENT_NUM)
+-- create nonclustered index DF_IDX_ENCOUNTER_PATIENT_CONCEPT_DATE on dbo.DERIVED_FACT  (ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, START_DATE)
+-- create nonclustered index DF_IDX_PATIENT_CONCEPT_DATE on dbo.DERIVED_FACT  (PATIENT_NUM, CONCEPT_CD, START_DATE)
+
 
 
 --------------------------------------------------------------------------------
 -- Truncate tables.
 --------------------------------------------------------------------------------
 
-/*
-truncate table dbo.dt_komap_phenotype;
-truncate table dbo.dt_komap_phenotype_feature_dict;
-truncate table dbo.dt_komap_patient_feature;
-truncate table dbo.dt_komap_base_cohort;
-truncate table dbo.dt_komap_phenotype_sample;
-truncate table dbo.dt_komap_phenotype_sample_feature;
-truncate table dbo.dt_komap_phenotype_covar_inner;
-truncate table dbo.dt_komap_phenotype_covar;
-truncate table dbo.dt_komap_phenotype_feature_coef;
-truncate table dbo.dt_komap_phenotype_sample_results;
-truncate table dbo.dt_komap_phenotype_gmm;
-truncate table dbo.dt_komap_phenotype_gold_standard;
-truncate table dbo.dt_komap_phenotype_patient;
---truncate table dbo.DERIVED_FACT;
-*/
+-- truncate table dbo.dt_komap_phenotype;
+-- truncate table dbo.dt_komap_phenotype_feature_dict;
+-- truncate table dbo.dt_komap_patient_feature;
+-- truncate table dbo.dt_komap_base_cohort;
+-- truncate table dbo.dt_komap_phenotype_sample;
+-- truncate table dbo.dt_komap_phenotype_sample_feature;
+-- truncate table dbo.dt_komap_phenotype_covar_inner;
+-- truncate table dbo.dt_komap_phenotype_covar;
+-- truncate table dbo.dt_komap_phenotype_feature_coef;
+-- truncate table dbo.dt_komap_phenotype_sample_results;
+-- truncate table dbo.dt_komap_phenotype_gmm;
+-- truncate table dbo.dt_komap_phenotype_gold_standard;
+-- truncate table dbo.dt_komap_phenotype_patient;
+-- truncate table dbo.DERIVED_FACT;
 
 
