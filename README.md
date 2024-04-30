@@ -1,6 +1,6 @@
 # i2b2 Digital Twin
 
-The scripts to modify an i2b2 database with stored procedures to compute derived facts to support the digital twin in i2b2. 
+The scripts to modify an i2b2 database with stored procedures to compute derived facts to support the digital twin in i2b2. Click here for the documentation: [The Digital Twin Package documentation](https://community.i2b2.org/wiki/display/BUN/Digital+Twin+Technologies)
 
 
 ## Development / Maintenance
