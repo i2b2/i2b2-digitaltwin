@@ -336,7 +336,7 @@ create table dbo.dt_keser_phenotype_feature (
 --##############################################################################
 --##############################################################################
 --### KOMAP - Create Tables
---### Date: September 1, 2023
+--### Date: April 23, 2024
 --### Database: Microsoft SQL Server
 --### Created By: Griffin Weber (weber@hms.harvard.edu)
 --##############################################################################
@@ -353,6 +353,7 @@ if OBJECT_ID(N'dbo.dt_komap_patient_feature', N'U') is not null drop table dbo.d
 if OBJECT_ID(N'dbo.dt_komap_base_cohort', N'U') is not null drop table dbo.dt_komap_base_cohort;
 if OBJECT_ID(N'dbo.dt_komap_phenotype_sample', N'U') is not null drop table dbo.dt_komap_phenotype_sample;
 if OBJECT_ID(N'dbo.dt_komap_phenotype_sample_feature', N'U') is not null drop table dbo.dt_komap_phenotype_sample_feature;
+if OBJECT_ID(N'dbo.dt_komap_phenotype_sample_feature_temp', N'U') is not null drop table dbo.dt_komap_phenotype_sample_feature_temp;
 if OBJECT_ID(N'dbo.dt_komap_phenotype_covar_inner', N'U') is not null drop table dbo.dt_komap_phenotype_covar_inner;
 if OBJECT_ID(N'dbo.dt_komap_phenotype_covar', N'U') is not null drop table dbo.dt_komap_phenotype_covar;
 if OBJECT_ID(N'dbo.dt_komap_phenotype_feature_coef', N'U') is not null drop table dbo.dt_komap_phenotype_feature_coef;
@@ -421,6 +422,15 @@ create table dbo.dt_komap_phenotype_sample_feature (
 	num_dates int not null,
 	log_dates float not null,
 	primary key (phenotype, feature_cd, patient_num)
+);
+
+create table dbo.dt_komap_phenotype_sample_feature_temp (
+	phenotype varchar(50) not null,
+	patient_num int not null,
+	feature_cd varchar(50) not null,
+	num_dates int not null,
+	log_dates float not null,
+	primary key (patient_num, feature_cd)
 );
 
 create table dbo.dt_komap_phenotype_covar_inner (
@@ -498,7 +508,7 @@ create table dbo.dt_komap_phenotype_patient (
 -- Create a DERIVED_FACT table if one does not alreay exist.
 --------------------------------------------------------------------------------
 
---  create table dbo.DERIVED_FACT(
+-- create table dbo.DERIVED_FACT(
 -- 	ENCOUNTER_NUM int NOT NULL,
 -- 	PATIENT_NUM int NOT NULL,
 -- 	CONCEPT_CD varchar(50) NOT NULL,
@@ -539,6 +549,7 @@ create table dbo.dt_komap_phenotype_patient (
 -- truncate table dbo.dt_komap_base_cohort;
 -- truncate table dbo.dt_komap_phenotype_sample;
 -- truncate table dbo.dt_komap_phenotype_sample_feature;
+-- truncate table dbo.dt_komap_phenotype_sample_feature_temp;
 -- truncate table dbo.dt_komap_phenotype_covar_inner;
 -- truncate table dbo.dt_komap_phenotype_covar;
 -- truncate table dbo.dt_komap_phenotype_feature_coef;
@@ -546,6 +557,6 @@ create table dbo.dt_komap_phenotype_patient (
 -- truncate table dbo.dt_komap_phenotype_gmm;
 -- truncate table dbo.dt_komap_phenotype_gold_standard;
 -- truncate table dbo.dt_komap_phenotype_patient;
--- truncate table dbo.DERIVED_FACT;
+-- --truncate table dbo.DERIVED_FACT;
 
 

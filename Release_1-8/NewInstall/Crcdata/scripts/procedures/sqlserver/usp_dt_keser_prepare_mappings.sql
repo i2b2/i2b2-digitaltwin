@@ -1,7 +1,7 @@
 --##############################################################################
 --##############################################################################
 --### KESER - Prepare Mappings
---### Date: September 1, 2023
+--### Date: April 23, 2024
 --### Database: Microsoft SQL Server
 --### Created By: Griffin Weber (weber@hms.harvard.edu)
 --##############################################################################
@@ -10,6 +10,7 @@
 
 -- Drop the procedure if it already exists
 IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_mappings') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_mappings;;
+
 
 
 CREATE PROCEDURE dbo.usp_dt_keser_prepare_mappings
@@ -46,13 +47,13 @@ truncate table dbo.dt_keser_concept_children;
 update dbo.dt_keser_import_concept_feature
 	set concept_cd = (
 		case
-		--when concept_cd like 'DIAG|ICD9CM:%' then replace(concept_cd,'DIAG|ICD9CM:','ICD9CM:')
-		--when concept_cd like 'DIAG|ICD10CM:%' then replace(concept_cd,'DIAG|ICD10CM:','ICD10CM:')
-		--when concept_cd like 'PROC|ICD9PROC:%' then replace(concept_cd,'PROC|ICD9PROC:','ICD9PROC:')
-		--when concept_cd like 'PROC|ICD10PCS:%' then replace(concept_cd,'PROC|ICD10PCS:','ICD10PCS:')
-		--when concept_cd like 'PROC|CPT4:%' then replace(concept_cd,'PROC|CPT4:','CPT4:')
-		--when concept_cd like 'MED|RXNORM:%' then replace(concept_cd,'MED|RXNORM:','RXNORM:')
-		--when concept_cd like 'LAB|LOINC:%' then replace(concept_cd,'LAB|LOINC:','LOINC:')
+		when concept_cd like 'DIAG|ICD9CM:%' then replace(concept_cd,'DIAG|ICD9CM:','ICD9CM:')
+		when concept_cd like 'DIAG|ICD10CM:%' then replace(concept_cd,'DIAG|ICD10CM:','ICD10CM:')
+		when concept_cd like 'PROC|ICD9PROC:%' then replace(concept_cd,'PROC|ICD9PROC:','ICD9PROC:')
+		when concept_cd like 'PROC|ICD10PCS:%' then replace(concept_cd,'PROC|ICD10PCS:','ICD10PCS:')
+		when concept_cd like 'PROC|CPT4:%' then replace(concept_cd,'PROC|CPT4:','CPT4:')
+		when concept_cd like 'MED|RXNORM:%' then replace(concept_cd,'MED|RXNORM:','RXNORM:')
+		when concept_cd like 'LAB|LOINC:%' then replace(concept_cd,'LAB|LOINC:','LOINC:')
 		when 1=0 then concept_cd
 		else concept_cd
 		end

@@ -1,7 +1,7 @@
 --##############################################################################
 --##############################################################################
 --### KOMAP - Process Results
---### Date: September 1, 2023
+--### Date: April 23, 2024
 --### Database: Microsoft SQL Server
 --### Created By: Griffin Weber (weber@hms.harvard.edu)
 --##############################################################################
@@ -10,6 +10,7 @@
 
 -- Drop the procedure if it already exists
 IF OBJECT_ID(N'dbo.usp_dt_komap_process_results') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_process_results;;
+
 
 
 CREATE PROCEDURE dbo.usp_dt_komap_process_results
@@ -101,7 +102,8 @@ begin
 
 	-- Next iteration
 	select @gmm_iteration = @gmm_iteration + 1;
- 	
+
+-- 	--
 -- 	-- Evaluate the log-likelihood to confirm convergence
 -- 	select avg(l)
 -- 		from (
@@ -109,6 +111,8 @@ begin
 -- 			from #gmm
 -- 			group by phenotype
 -- 		) t;
+-- 	
+-- 	
 
 end;
 
@@ -118,7 +122,8 @@ end;
 -------------------------------------------------------------------------
 
 -- Threshold
--- (Target PPV>=0.9, but listed here as PPV>=0.92 to give a small buffer.)
+-- By default, based on when it becomes more likely that the patient has the phenotype.
+-- Alternatively, the threshold can be based on the estimated PPV.
 update p
 	set p.threshold = (
 		select min(score) threshold
@@ -127,7 +132,7 @@ update p
 			from dbo.dt_komap_phenotype_gmm g
 			where g.phenotype=p.phenotype
 		) t
-		where p2>=p1 and score>m1 and ppv>=0.92
+		where p2>=p1 and score>m1 --and ppv>=0.92
 	)
 	from dbo.dt_komap_phenotype p;
 	
@@ -267,9 +272,15 @@ update p
 -- Generate derived phenotype facts when the PPV >= 0.9.
 -------------------------------------------------------------------------
 
+-- Select all phenotypes where a threshold was computed
 update dbo.dt_komap_phenotype
-	set generate_facts = (case when ppv>=0.9 then 1 else 0 end);
-	
+	set generate_facts = (case when threshold is not null then 1 else 0 end);
+
+-- Alternatively, use custom logic to select only the best phenotypes	
+--update dbo.dt_komap_phenotype
+--	set generate_facts = (case when ppv>=0.9 then 1 else 0 end);
+
 
 END
+
 
