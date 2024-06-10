@@ -155,29 +155,6 @@ CREATE TABLE [DBO].[DT_LOYALTY_PSCOEFF] ( -- Was DT_LOYALTY_PSCOEFF
   
 CREATE TYPE DBO.UDT_DT_LOYALTY_COHORTFILTER AS TABLE (PATIENT_NUM INT, COHORT_NAME VARCHAR(100), INDEX_DT DATE);
 
--- Externally validated coefficients
-INSERT INTO DT_LOYALTY_PSCOEFF (FIELD_NAME, COEFF)
-VALUES ('MDVISIT_PNAME2',0.049)
-,('MDVISIT_PNAME3',0.087)
-,('MEDICAL_EXAM',0.078)
-,('MAMMOGRAPHY',0.075)
-,('PAP_TEST',0.009)
-,('PSA_TEST',0.103)
-,('COLONOSCOPY',0.064)
-,('FECAL_OCCULT_TEST',0.034)
-,('FLU_SHOT',0.102)
-,('PNEUMOCOCCAL_VACCINE',0.031)
-,('BMI',0.017)
-,('A1C',0.018)
-,('MED_USE1',0.002)
-,('MED_USE2',0.074)
-,('INP1_OPT1_VISIT',0.091)
-,('OPT2_VISIT',0.050)
-,('NUM_DX1',-0.026)
-,('NUM_DX2',0.037)
-,('ED_VISIT',0.078)
-,('ROUTINE_CARE_2',0.049);
-
 --##############################################################################
 --##############################################################################
 --### KESER - Create Tables
@@ -192,144 +169,144 @@ VALUES ('MDVISIT_PNAME2',0.049)
 -- Drop existing tables.
 --------------------------------------------------------------------------------
 
--- if OBJECT_ID(N'dbo.dt_keser_import_concept_feature', N'U') is not null drop table dbo.dt_keser_import_concept_feature;
--- if OBJECT_ID(N'dbo.dt_keser_feature', N'U') is not null drop table dbo.dt_keser_feature;
--- if OBJECT_ID(N'dbo.dt_keser_concept_feature', N'U') is not null drop table dbo.dt_keser_concept_feature;
--- if OBJECT_ID(N'dbo.dt_keser_concept_children', N'U') is not null drop table dbo.dt_keser_concept_children;
--- if OBJECT_ID(N'dbo.dt_keser_patient_partition', N'U') is not null drop table dbo.dt_keser_patient_partition;
--- if OBJECT_ID(N'dbo.dt_keser_patient_period_feature', N'U') is not null drop table dbo.dt_keser_patient_period_feature;
--- if OBJECT_ID(N'dbo.dt_keser_feature_count', N'U') is not null drop table dbo.dt_keser_feature_count;
--- if OBJECT_ID(N'dbo.dt_keser_feature_cooccur_temp', N'U') is not null drop table dbo.dt_keser_feature_cooccur_temp;
--- if OBJECT_ID(N'dbo.dt_keser_feature_cooccur', N'U') is not null drop table dbo.dt_keser_feature_cooccur;
--- if OBJECT_ID(N'dbo.dt_keser_embedding', N'U') is not null drop table dbo.dt_keser_embedding;
--- if OBJECT_ID(N'dbo.dt_keser_phenotype', N'U') is not null drop table dbo.dt_keser_phenotype;
--- if OBJECT_ID(N'dbo.dt_keser_phenotype_feature', N'U') is not null drop table dbo.dt_keser_phenotype_feature;
+-- IF OBJECT_ID(N'DBO.DT_KESER_IMPORT_CONCEPT_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_IMPORT_CONCEPT_FEATURE;
+-- IF OBJECT_ID(N'DBO.DT_KESER_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_FEATURE;
+-- IF OBJECT_ID(N'DBO.DT_KESER_CONCEPT_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_CONCEPT_FEATURE;
+-- IF OBJECT_ID(N'DBO.DT_KESER_CONCEPT_CHILDREN', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_CONCEPT_CHILDREN;
+-- IF OBJECT_ID(N'DBO.DT_KESER_PATIENT_PARTITION', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_PATIENT_PARTITION;
+-- IF OBJECT_ID(N'DBO.DT_KESER_PATIENT_PERIOD_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_PATIENT_PERIOD_FEATURE;
+-- IF OBJECT_ID(N'DBO.DT_KESER_FEATURE_COUNT', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_FEATURE_COUNT;
+-- IF OBJECT_ID(N'DBO.DT_KESER_FEATURE_COOCCUR_TEMP', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_FEATURE_COOCCUR_TEMP;
+-- IF OBJECT_ID(N'DBO.DT_KESER_FEATURE_COOCCUR', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_FEATURE_COOCCUR;
+-- IF OBJECT_ID(N'DBO.DT_KESER_EMBEDDING', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_EMBEDDING;
+-- IF OBJECT_ID(N'DBO.DT_KESER_PHENOTYPE', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_PHENOTYPE;
+-- IF OBJECT_ID(N'DBO.DT_KESER_PHENOTYPE_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KESER_PHENOTYPE_FEATURE;
 
 
 --------------------------------------------------------------------------------
 -- Create tables for mapping features to local concepts.
 --------------------------------------------------------------------------------
 
-create table dbo.dt_keser_import_concept_feature (
-	concept_cd varchar(50) not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250) not null
+CREATE TABLE DBO.DT_KESER_IMPORT_CONCEPT_FEATURE (
+	CONCEPT_CD VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250) NOT NULL
 );
 
-create table dbo.dt_keser_feature (
-	feature_num int not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250) not null,
-	primary key (feature_num)
+CREATE TABLE DBO.DT_KESER_FEATURE (
+	FEATURE_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250) NOT NULL,
+	PRIMARY KEY (FEATURE_NUM)
 );
-create nonclustered index idx_feature_cd on dbo.dt_keser_feature(feature_cd);
+CREATE NONCLUSTERED INDEX IDX_FEATURE_CD ON DBO.DT_KESER_FEATURE(FEATURE_CD);
 
-create table dbo.dt_keser_concept_feature (
-	concept_cd varchar(50) not null,
-	feature_num int not null,
-	primary key (concept_cd, feature_num)
+CREATE TABLE DBO.DT_KESER_CONCEPT_FEATURE (
+	CONCEPT_CD VARCHAR(50) NOT NULL,
+	FEATURE_NUM INT NOT NULL,
+	PRIMARY KEY (CONCEPT_CD, FEATURE_NUM)
 );
-create unique nonclustered index idx_feature_concept on dbo.dt_keser_concept_feature(feature_num, concept_cd);
+CREATE UNIQUE NONCLUSTERED INDEX IDX_FEATURE_CONCEPT ON DBO.DT_KESER_CONCEPT_FEATURE(FEATURE_NUM, CONCEPT_CD);
 
-create table dbo.dt_keser_concept_children (
-	concept_cd varchar(50) not null,
-	child_cd varchar(50) not null,
-	primary key (concept_cd, child_cd)
+CREATE TABLE DBO.DT_KESER_CONCEPT_CHILDREN (
+	CONCEPT_CD VARCHAR(50) NOT NULL,
+	CHILD_CD VARCHAR(50) NOT NULL,
+	PRIMARY KEY (CONCEPT_CD, CHILD_CD)
 )
 
 --------------------------------------------------------------------------------
 -- Create tables for patient data.
 --------------------------------------------------------------------------------
 
-create table dbo.dt_keser_patient_partition (
-	patient_num int not null,
-	patient_partition tinyint not null,
-	primary key (patient_num)
+CREATE TABLE DBO.DT_KESER_PATIENT_PARTITION (
+	PATIENT_NUM INT NOT NULL,
+	PATIENT_PARTITION TINYINT NOT NULL,
+	PRIMARY KEY (PATIENT_NUM)
 );
 
-create table dbo.dt_keser_patient_period_feature (
-	patient_partition tinyint not null,
-	patient_num int not null,
-	time_period int not null,
-	feature_num int not null,
-	min_offset smallint not null,
-	max_offset smallint not null,
-	feature_dates smallint,
-	concept_dates int,
-	primary key (patient_partition, patient_num, time_period, feature_num)
+CREATE TABLE DBO.DT_KESER_PATIENT_PERIOD_FEATURE (
+	PATIENT_PARTITION TINYINT NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	TIME_PERIOD INT NOT NULL,
+	FEATURE_NUM INT NOT NULL,
+	MIN_OFFSET SMALLINT NOT NULL,
+	MAX_OFFSET SMALLINT NOT NULL,
+	FEATURE_DATES SMALLINT,
+	CONCEPT_DATES INT,
+	PRIMARY KEY (PATIENT_PARTITION, PATIENT_NUM, TIME_PERIOD, FEATURE_NUM)
 );
 
-create table dbo.dt_keser_feature_count (
-	cohort tinyint not null,
-	feature_num int not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250) not null,
-	feature_count int not null,
-	primary key (cohort, feature_num)
+CREATE TABLE DBO.DT_KESER_FEATURE_COUNT (
+	COHORT TINYINT NOT NULL,
+	FEATURE_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250) NOT NULL,
+	FEATURE_COUNT INT NOT NULL,
+	PRIMARY KEY (COHORT, FEATURE_NUM)
 );
 
-create table dbo.dt_keser_feature_cooccur_temp (
-	cohort tinyint not null,
-	feature_num1 int not null,
-	feature_num2 int not null,
-	num_patients int not null
+CREATE TABLE DBO.DT_KESER_FEATURE_COOCCUR_TEMP (
+	COHORT TINYINT NOT NULL,
+	FEATURE_NUM1 INT NOT NULL,
+	FEATURE_NUM2 INT NOT NULL,
+	NUM_PATIENTS INT NOT NULL
 );
 
-create table dbo.dt_keser_feature_cooccur (
-	cohort tinyint not null,
-	feature_num1 int not null,
-	feature_num2 int not null,
-	coocur_count int not null,
-	primary key (cohort, feature_num1, feature_num2)
+CREATE TABLE DBO.DT_KESER_FEATURE_COOCCUR (
+	COHORT TINYINT NOT NULL,
+	FEATURE_NUM1 INT NOT NULL,
+	FEATURE_NUM2 INT NOT NULL,
+	COOCUR_COUNT INT NOT NULL,
+	PRIMARY KEY (COHORT, FEATURE_NUM1, FEATURE_NUM2)
 );
 
 --------------------------------------------------------------------------------
 -- Create table to store embeddings.
 --------------------------------------------------------------------------------
 
-create table dbo.dt_keser_embedding (
-	cohort tinyint not null,
-	feature_cd varchar(50) not null,
-	dim int not null,
-	val float not null,
-	primary key (cohort, feature_cd, dim)
+CREATE TABLE DBO.DT_KESER_EMBEDDING (
+	COHORT TINYINT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	DIM INT NOT NULL,
+	VAL FLOAT NOT NULL,
+	PRIMARY KEY (COHORT, FEATURE_CD, DIM)
 );
 
 --------------------------------------------------------------------------------
 -- Create tables for embedding regression (map phenotypes to features).
 --------------------------------------------------------------------------------
 
-create table dbo.dt_keser_phenotype (
-	phenotype varchar(50) not null
-	primary key (phenotype)
+CREATE TABLE DBO.DT_KESER_PHENOTYPE (
+	PHENOTYPE VARCHAR(50) NOT NULL
+	PRIMARY KEY (PHENOTYPE)
 );
 
-create table dbo.dt_keser_phenotype_feature (
-	phenotype varchar(50) not null,
-	feature_cd varchar(50) not null,
-	feature_rank int,
-	feature_beta float,
-	feature_cosine float,
-	primary key (phenotype, feature_cd)
+CREATE TABLE DBO.DT_KESER_PHENOTYPE_FEATURE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_RANK INT,
+	FEATURE_BETA FLOAT,
+	FEATURE_COSINE FLOAT,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD)
 );
 
 
 --------------------------------------------------------------------------------
 -- Truncate tables.
 --------------------------------------------------------------------------------
-
--- truncate table dbo.dt_keser_import_concept_feature;
--- truncate table dbo.dt_keser_feature;
--- truncate table dbo.dt_keser_concept_feature;
--- truncate table dbo.dt_keser_concept_children;
--- truncate table dbo.dt_keser_patient_partition;
--- truncate table dbo.dt_keser_patient_period_feature;
--- truncate table dbo.dt_keser_feature_count;
--- truncate table dbo.dt_keser_feature_cooccur_temp;
--- truncate table dbo.dt_keser_feature_cooccur;
--- truncate table dbo.dt_keser_embedding;
--- truncate table dbo.dt_keser_phenotype;
--- truncate table dbo.dt_keser_phenotype_feature;
+--
+-- TRUNCATE TABLE DBO.DT_KESER_IMPORT_CONCEPT_FEATURE;
+-- TRUNCATE TABLE DBO.DT_KESER_FEATURE;
+-- TRUNCATE TABLE DBO.DT_KESER_CONCEPT_FEATURE;
+-- TRUNCATE TABLE DBO.DT_KESER_CONCEPT_CHILDREN;
+-- TRUNCATE TABLE DBO.DT_KESER_PATIENT_PARTITION;
+-- TRUNCATE TABLE DBO.DT_KESER_PATIENT_PERIOD_FEATURE;
+-- TRUNCATE TABLE DBO.DT_KESER_FEATURE_COUNT;
+-- TRUNCATE TABLE DBO.DT_KESER_FEATURE_COOCCUR_TEMP;
+-- TRUNCATE TABLE DBO.DT_KESER_FEATURE_COOCCUR;
+-- TRUNCATE TABLE DBO.DT_KESER_EMBEDDING;
+-- TRUNCATE TABLE DBO.DT_KESER_PHENOTYPE;
+-- TRUNCATE TABLE DBO.DT_KESER_PHENOTYPE_FEATURE;
 
 
 
@@ -347,168 +324,168 @@ create table dbo.dt_keser_phenotype_feature (
 -- Drop existing tables.
 --------------------------------------------------------------------------------
 
-if OBJECT_ID(N'dbo.dt_komap_phenotype', N'U') is not null drop table dbo.dt_komap_phenotype;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_feature_dict', N'U') is not null drop table dbo.dt_komap_phenotype_feature_dict;
-if OBJECT_ID(N'dbo.dt_komap_patient_feature', N'U') is not null drop table dbo.dt_komap_patient_feature;
-if OBJECT_ID(N'dbo.dt_komap_base_cohort', N'U') is not null drop table dbo.dt_komap_base_cohort;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_sample', N'U') is not null drop table dbo.dt_komap_phenotype_sample;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_sample_feature', N'U') is not null drop table dbo.dt_komap_phenotype_sample_feature;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_sample_feature_temp', N'U') is not null drop table dbo.dt_komap_phenotype_sample_feature_temp;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_covar_inner', N'U') is not null drop table dbo.dt_komap_phenotype_covar_inner;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_covar', N'U') is not null drop table dbo.dt_komap_phenotype_covar;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_feature_coef', N'U') is not null drop table dbo.dt_komap_phenotype_feature_coef;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_sample_results', N'U') is not null drop table dbo.dt_komap_phenotype_sample_results;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_gmm', N'U') is not null drop table dbo.dt_komap_phenotype_gmm;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_gold_standard', N'U') is not null drop table dbo.dt_komap_phenotype_gold_standard;
-if OBJECT_ID(N'dbo.dt_komap_phenotype_patient', N'U') is not null drop table dbo.dt_komap_phenotype_patient;
---if OBJECT_ID(N'dbo.DERIVED_FACT', N'U') is not null drop table dbo.DERIVED_FACT;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_FEATURE_DICT', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_FEATURE_DICT;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PATIENT_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PATIENT_FEATURE;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_BASE_COHORT', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_BASE_COHORT;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_SAMPLE', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_COVAR_INNER', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_COVAR_INNER;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_COVAR', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_COVAR;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_FEATURE_COEF', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_FEATURE_COEF;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_GMM', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_GMM;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_GOLD_STANDARD', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_GOLD_STANDARD;
+-- IF OBJECT_ID(N'DBO.DT_KOMAP_PHENOTYPE_PATIENT', N'U') IS NOT NULL DROP TABLE DBO.DT_KOMAP_PHENOTYPE_PATIENT;
+-- IF OBJECT_ID(N'DBO.DERIVED_FACT', N'U') IS NOT NULL DROP TABLE DBO.DERIVED_FACT;
 
 
 --------------------------------------------------------------------------------
 -- Create new tables to list the phenotypes and their features.
 --------------------------------------------------------------------------------
 
-create table dbo.dt_komap_phenotype (
-	phenotype varchar(50) not null,
-	phenotype_name varchar(50) not null,
-	threshold float,
-	gmm_mean1 float,
-	gmm_mean2 float,
-	gmm_stdev1 float,
-	gmm_stdev2 float,
-	ppv float,
-	recall float,
-	recall_base_cohort float,
-	recall_has_feature float,
-	frac_feature_in_base_cohort float,
-	generate_facts int,
-	primary key (phenotype)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PHENOTYPE_NAME VARCHAR(50) NOT NULL,
+	THRESHOLD FLOAT,
+	GMM_MEAN1 FLOAT,
+	GMM_MEAN2 FLOAT,
+	GMM_STDEV1 FLOAT,
+	GMM_STDEV2 FLOAT,
+	PPV FLOAT,
+	RECALL FLOAT,
+	RECALL_BASE_COHORT FLOAT,
+	RECALL_HAS_FEATURE FLOAT,
+	FRAC_FEATURE_IN_BASE_COHORT FLOAT,
+	GENERATE_FACTS INT,
+	PRIMARY KEY (PHENOTYPE)
 );
 
-create table dbo.dt_komap_phenotype_feature_dict (
-	phenotype varchar(50) not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250)
-	primary key (phenotype, feature_cd)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_FEATURE_DICT (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250)
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD)
 );
 
 --------------------------------------------------------------------------------
 -- Create new tables to generate the input data for KOMAP.
 --------------------------------------------------------------------------------
 
-create table dbo.dt_komap_patient_feature (
-	patient_num int not null,
-	feature_cd varchar(50) not null,
-	num_dates int not null,
-	log_dates float not null,
-	primary key (feature_cd, patient_num)
+CREATE TABLE DBO.DT_KOMAP_PATIENT_FEATURE (
+	PATIENT_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	NUM_DATES INT NOT NULL,
+	LOG_DATES FLOAT NOT NULL,
+	PRIMARY KEY (FEATURE_CD, PATIENT_NUM)
 );
 
-create table dbo.dt_komap_base_cohort (
-	patient_num int not null,
-	primary key (patient_num)
+CREATE TABLE DBO.DT_KOMAP_BASE_COHORT (
+	PATIENT_NUM INT NOT NULL,
+	PRIMARY KEY (PATIENT_NUM)
 );
 
-create table dbo.dt_komap_phenotype_sample (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	primary key (phenotype, patient_num)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
-create table dbo.dt_komap_phenotype_sample_feature (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	feature_cd varchar(50) not null,
-	num_dates int not null,
-	log_dates float not null,
-	primary key (phenotype, feature_cd, patient_num)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	NUM_DATES INT NOT NULL,
+	LOG_DATES FLOAT NOT NULL,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD, PATIENT_NUM)
 );
 
-create table dbo.dt_komap_phenotype_sample_feature_temp (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	feature_cd varchar(50) not null,
-	num_dates int not null,
-	log_dates float not null,
-	primary key (patient_num, feature_cd)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	NUM_DATES INT NOT NULL,
+	LOG_DATES FLOAT NOT NULL,
+	PRIMARY KEY (PATIENT_NUM, FEATURE_CD)
 );
 
-create table dbo.dt_komap_phenotype_covar_inner (
-	phenotype varchar(50) not null,
-	feature_cd1 varchar(50) not null,
-	feature_cd2 varchar(50) not null,
-	num_patients int,
-	sum_log_dates float,
-	primary key (phenotype, feature_cd1, feature_cd2)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_COVAR_INNER (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD1 VARCHAR(50) NOT NULL,
+	FEATURE_CD2 VARCHAR(50) NOT NULL,
+	NUM_PATIENTS INT,
+	SUM_LOG_DATES FLOAT,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD1, FEATURE_CD2)
 );
 
-create table dbo.dt_komap_phenotype_covar (
-	phenotype varchar(50) not null,
-	feature_cd1 varchar(50) not null,
-	feature_cd2 varchar(50) not null,
-	covar float,
-	primary key (phenotype, feature_cd1, feature_cd2)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_COVAR (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD1 VARCHAR(50) NOT NULL,
+	FEATURE_CD2 VARCHAR(50) NOT NULL,
+	COVAR FLOAT,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD1, FEATURE_CD2)
 );
 
-create table dbo.dt_komap_phenotype_feature_coef (
-	phenotype varchar(50) not null,
-	feature_cd varchar(50) not null,
-	coef float not null
-	primary key (phenotype, feature_cd)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_FEATURE_COEF (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	COEF FLOAT NOT NULL
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD)
 );
 
 --------------------------------------------------------------------------------
 -- Create new tables to store and process the results of KOMAP.
 --------------------------------------------------------------------------------
 
-create table dbo.dt_komap_phenotype_sample_results (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	score float,
-	phecode_dates int,
-	utilization_dates int,
-	phecode_score float,
-	utilization_score float,
-	other_positive_feature_score float,
-	other_negative_feature_score float
-	primary key (phenotype, patient_num)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	SCORE FLOAT,
+	PHECODE_DATES INT,
+	UTILIZATION_DATES INT,
+	PHECODE_SCORE FLOAT,
+	UTILIZATION_SCORE FLOAT,
+	OTHER_POSITIVE_FEATURE_SCORE FLOAT,
+	OTHER_NEGATIVE_FEATURE_SCORE FLOAT
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
-create table dbo.dt_komap_phenotype_gmm (
-	phenotype varchar(50) not null,
-	score_percentile int not null,
-	score float,
-	m1 float,
-	m2 float,
-	s1 float,
-	s2 float,
-	g1 float,
-	g2 float,
-	p1 float,
-	p2 float,
-	primary key (phenotype, score_percentile)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_GMM (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	SCORE_PERCENTILE INT NOT NULL,
+	SCORE FLOAT,
+	M1 FLOAT,
+	M2 FLOAT,
+	S1 FLOAT,
+	S2 FLOAT,
+	G1 FLOAT,
+	G2 FLOAT,
+	P1 FLOAT,
+	P2 FLOAT,
+	PRIMARY KEY (PHENOTYPE, SCORE_PERCENTILE)
 );
 
-create table dbo.dt_komap_phenotype_gold_standard (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	has_phenotype int,
-	score float null
-	primary key (phenotype, patient_num)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_GOLD_STANDARD (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	HAS_PHENOTYPE INT,
+	SCORE FLOAT NULL
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
-create table dbo.dt_komap_phenotype_patient (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	score float,
-	primary key (phenotype, patient_num)
+CREATE TABLE DBO.DT_KOMAP_PHENOTYPE_PATIENT (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	SCORE FLOAT,
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
 --------------------------------------------------------------------------------
 -- Create a DERIVED_FACT table if one does not alreay exist.
 --------------------------------------------------------------------------------
 
--- create table dbo.DERIVED_FACT(
+-- CREATE TABLE DBO.DERIVED_FACT(
 -- 	ENCOUNTER_NUM int NOT NULL,
 -- 	PATIENT_NUM int NOT NULL,
 -- 	CONCEPT_CD varchar(50) NOT NULL,
@@ -532,10 +509,10 @@ create table dbo.dt_komap_phenotype_patient (
 -- 	SOURCESYSTEM_CD varchar(50),
 -- 	UPLOAD_ID int
 -- )
--- alter table dbo.DERIVED_FACT add primary key (CONCEPT_CD,PATIENT_NUM,ENCOUNTER_NUM,START_DATE,PROVIDER_ID,INSTANCE_NUM,MODIFIER_CD)
--- create nonclustered index DF_IDX_CONCEPT_DATE_PATIENT on dbo.DERIVED_FACT  (CONCEPT_CD, START_DATE, PATIENT_NUM)
--- create nonclustered index DF_IDX_ENCOUNTER_PATIENT_CONCEPT_DATE on dbo.DERIVED_FACT  (ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, START_DATE)
--- create nonclustered index DF_IDX_PATIENT_CONCEPT_DATE on dbo.DERIVED_FACT  (PATIENT_NUM, CONCEPT_CD, START_DATE)
+-- ALTER TABLE DBO.DERIVED_FACT ADD PRIMARY KEY (CONCEPT_CD,PATIENT_NUM,ENCOUNTER_NUM,START_DATE,PROVIDER_ID,INSTANCE_NUM,MODIFIER_CD)
+-- CREATE NONCLUSTERED INDEX DF_IDX_CONCEPT_DATE_PATIENT ON DBO.DERIVED_FACT  (CONCEPT_CD, START_DATE, PATIENT_NUM)
+-- CREATE NONCLUSTERED INDEX DF_IDX_ENCOUNTER_PATIENT_CONCEPT_DATE ON DBO.DERIVED_FACT  (ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, START_DATE)
+-- CREATE NONCLUSTERED INDEX DF_IDX_PATIENT_CONCEPT_DATE ON DBO.DERIVED_FACT  (PATIENT_NUM, CONCEPT_CD, START_DATE)
 
 
 
@@ -543,20 +520,20 @@ create table dbo.dt_komap_phenotype_patient (
 -- Truncate tables.
 --------------------------------------------------------------------------------
 
--- truncate table dbo.dt_komap_phenotype;
--- truncate table dbo.dt_komap_phenotype_feature_dict;
--- truncate table dbo.dt_komap_patient_feature;
--- truncate table dbo.dt_komap_base_cohort;
--- truncate table dbo.dt_komap_phenotype_sample;
--- truncate table dbo.dt_komap_phenotype_sample_feature;
--- truncate table dbo.dt_komap_phenotype_sample_feature_temp;
--- truncate table dbo.dt_komap_phenotype_covar_inner;
--- truncate table dbo.dt_komap_phenotype_covar;
--- truncate table dbo.dt_komap_phenotype_feature_coef;
--- truncate table dbo.dt_komap_phenotype_sample_results;
--- truncate table dbo.dt_komap_phenotype_gmm;
--- truncate table dbo.dt_komap_phenotype_gold_standard;
--- truncate table dbo.dt_komap_phenotype_patient;
--- --truncate table dbo.DERIVED_FACT;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_FEATURE_DICT;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PATIENT_FEATURE;
+-- TRUNCATE TABLE DBO.DT_KOMAP_BASE_COHORT;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_COVAR_INNER;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_COVAR;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_FEATURE_COEF;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_GMM;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_GOLD_STANDARD;
+-- TRUNCATE TABLE DBO.DT_KOMAP_PHENOTYPE_PATIENT;
+-- --TRUNCATE TABLE DBO.DERIVED_FACT;
 
 

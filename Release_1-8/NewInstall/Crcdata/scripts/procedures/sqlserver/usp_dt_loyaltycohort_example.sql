@@ -1,7 +1,7 @@
 -- Sample code that will run the loyalty cohort algorithm on all patients in a patient set, identified by a query named "patient set test1" and run by "demouser".
 -- It uses an index date of 01/01/2020 and a three-year lookback. Use this template to modify for your own work.
 
-IF OBJECT_ID(N'DBO.USP_DT_LOYALTYCOHORT_EXAMPLE') IS NOT NULL DROP PROCEDURE DBO.USP_DT_LOYALTYCOHORT_EXAMPLE;;
+-- IF OBJECT_ID(N'DBO.USP_DT_LOYALTYCOHORT_EXAMPLE') IS NOT NULL DROP PROCEDURE DBO.USP_DT_LOYALTYCOHORT_EXAMPLE;;
 
 CREATE PROCEDURE DBO.USP_DT_LOYALTYCOHORT_EXAMPLE
 

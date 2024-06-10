@@ -42,6 +42,10 @@ freq_all <- dbGetQuery(con, "select cohort, feature_num, feature_cd, feature_nam
 #CO_all <- read.csv("C:\\keser\\input\\dt_keser_feature_cooccur.csv")
 #freq_all <- read.csv("C:\\keser\\input\\dt_keser_feature_count.csv")
 
+# Ensure that column names are lowercase so that they will match references
+names(CO_all) <- base::tolower(names(CO_all))
+names(freq_all) <- base::tolower(names(freq_all))
+
 #===================================================================
 # RUN KESER (GENERATE EMBEDDINGS)
 #===================================================================

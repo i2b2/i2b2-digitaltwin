@@ -9,10 +9,10 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_komap_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_prepare_data;;
+-- IF OBJECT_ID(N'dbo.usp_dt_komap_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_prepare_data;;
 
 
-CREATE PROCEDURE dbo.usp_dt_komap_prepare_data
+CREATE PROCEDURE DBO.USP_DT_KOMAP_PREPARE_DATA
 AS
 BEGIN
 

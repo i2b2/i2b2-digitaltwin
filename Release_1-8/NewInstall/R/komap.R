@@ -42,6 +42,11 @@ data_cov_all <- dbGetQuery(con, "select phenotype, feature_cd1, feature_cd2, cov
 #data_dict_all <- read.csv("C:\\komap\\input\\dt_komap_phenotype_feature_dict.csv")
 #data_cov_all <- read.csv("C:\\komap\\input\\dt_komap_phenotype_covar.csv")
 
+# Ensure that column names are lowercase so that they will match references
+names(phenotypes) <- base::tolower(names(phenotypes))
+names(data_dict_all) <- base::tolower(names(data_dict_all))
+names(data_cov_all) <- base::tolower(names(data_cov_all))
+
 #===================================================================
 # RUN KOMAP
 #===================================================================

@@ -40,6 +40,10 @@ phenotypes <- dbGetQuery(con, "select phenotype from dbo.dt_keser_phenotype;")
 #embed_all <- read.csv("C:\\keser\\input\\dt_keser_embedding.csv")
 #phenotypes <- read.csv("C:\\keser\\input\\dt_keser_phenotype.csv")
 
+# Ensure that column names are lowercase so that they will match references
+names(embed_all) <- base::tolower(names(embed_all))
+names(phenotypes) <- base::tolower(names(phenotypes))
+
 #===================================================================
 # RUN KESER (EMBEDDING REGRESSION)
 #===================================================================

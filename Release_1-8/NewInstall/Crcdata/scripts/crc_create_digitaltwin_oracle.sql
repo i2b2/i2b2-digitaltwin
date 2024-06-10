@@ -13,48 +13,311 @@
 **********************************************************/
 
  CREATE TABLE DT_LOYALTY_PATHS -- was LOYALTY_XREF_CODE_PATHS
-   (	"FEATURE_NAME" VARCHAR2(26 BYTE), 
+   (
+    "FEATURE_NAME" VARCHAR2(26 BYTE),
 	"CODE_TYPE" VARCHAR2(26 BYTE), 
 	"CONCEPT_PATH" VARCHAR2(256 BYTE), 
-	"SITESPECIFICCODE" VARCHAR2(26 BYTE), 
-	"PATH_COMMENT" VARCHAR2(200 BYTE)
+	"SITE_SPECIFIC_CODE" VARCHAR2(26 BYTE),
+	"COMMENT" VARCHAR2(200 BYTE)
    ) ;
 
-CREATE TABLE LOYALTY_XREF_CHARLSON
+CREATE TABLE DT_LOYALTY_CHARLSON
    (	"CHARLSON_CATGRY" VARCHAR2(50 BYTE), 
 	"CHARLSON_WT" NUMBER(5,0), 
-	"CONCEPT_CD" VARCHAR2(50 BYTE)
+	"DIAGPATTERN" VARCHAR2(50 BYTE)
    );
 
- CREATE TABLE DT_LOYALTY_PSCOEFF -- was LOYALTY_XREF_CODE_PSCOEFF
+CREATE TABLE DT_LOYALTY_PSCOEFF -- was LOYALTY_XREF_CODE_PSCOEFF
    (	"FIELD_NAME" VARCHAR2(50 BYTE), 
 	"COEFF" NUMBER(4,3)
    );
 
--- Externally validated coefficients
---ASSIGN COEFFICIENTS FOR EACH FEATURE USED TO COMPUTE THE LOYALTY SCORE
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('MDVisit_pname2',0.049);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('MDVisit_pname3',0.087);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('PapTest',0.009);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('PSATest',0.103);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('Colonoscopy',0.064);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('FecalOccultTest',0.034);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('FluShot',0.102);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('PneumococcalVaccine',0.031);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('BMI',0.017);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('A1C',0.018);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('MedUse1',0.002);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('MedUse2',0.074);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('INP1_OPT1_Visit',0.091);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('OPT2_Visit',0.05);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('Num_DX1',-0.026);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('Num_DX2',0.037);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('ED_Visit',0.078);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('MedicalExam',0.078);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('Mammography',0.075);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('Routine_Care_2',0.049);
-Insert into DT_LOYALTY_PSCOEFF (FIELD_NAME,COEFF) values ('Demographics',0);
-COMMIT;
+CREATE TABLE DT_LOYALTY_COHORTFILTER (
+    "PATIENT_NUM" INT,
+    "COHORT_NAME" VARCHAR(100),
+    "INDEX_DT" DATE
+);
+
+CREATE TABLE DT_LOYALTY_RESULT_SUMMARY (
+    "COHORT_NAME" VARCHAR(100) NOT NULL,
+    "SITE" VARCHAR(10) NOT NULL,
+    "GENDER_DENOMINATORS_YN" CHAR(1) NOT NULL,
+    "CUTOFF_FILTER_YN" CHAR(1) NOT NULL,
+    "SUMMARY_DESCRIPTION" VARCHAR(20) NOT NULL,
+    "TABLE_NAME" VARCHAR(20) NULL,
+    "NUM_DX1" FLOAT NULL,
+    "NUM_DX2" FLOAT NULL,
+    "MED_USE1" FLOAT NULL,
+    "MED_USE2" FLOAT NULL,
+    "MAMMOGRAPHY" FLOAT NULL,
+    "PAP_TEST" FLOAT NULL,
+    "PSA_TEST" FLOAT NULL,
+    "COLONOSCOPY" FLOAT NULL,
+    "FECAL_OCCULT_TEST" FLOAT NULL,
+    "FLU_SHOT" FLOAT NULL,
+    "PNEUMOCOCCAL_VACCINE" FLOAT NULL,
+    "BMI" FLOAT NULL,
+    "A1C" FLOAT NULL,
+    "MEDICAL_EXAM" FLOAT NULL,
+    "INP1_OPT1_VISIT" FLOAT NULL,
+    "OPT2_VISIT" FLOAT NULL,
+    "ED_VISIT" FLOAT NULL,
+    "MDVISIT_PNAME2" FLOAT NULL,
+    "MDVISIT_PNAME3" FLOAT NULL,
+    "ROUTINE_CARE_2" FLOAT NULL,
+    "SUBJECTS_NOCRITERIA" FLOAT NULL,
+    "PREDICTIVE_SCORE_CUTOFF" FLOAT NULL,
+    "MEAN_10YR_PROB" FLOAT NULL,
+    "MEDIAN_10YR_PROB" FLOAT NULL,
+    "MODE_10YR_PROB" FLOAT NULL,
+    "STDEV_10YR_PROB" FLOAT NULL,
+    "TOTAL_SUBJECTS" INT NULL,
+    "TOTAL_SUBJECTS_FEMALE" INT NULL,
+    "TOTAL_SUBJECTS_MALE" INT NULL,
+    "PERCENT_POPULATION" FLOAT NULL,
+    "PERCENT_SUBJECTS_FEMALE" FLOAT NULL,
+    "PERCENT_SUBJECTS_MALE" FLOAT NULL,
+    "AVERAGE_FACT_COUNT" FLOAT NULL,
+    "EXTRACT_DTTM" TIMESTAMP DEFAULT localtimestamp NOT NULL,
+    "LOOKBACK_YR" INT NOT NULL,
+    "RUNTIME_MS" INT NULL
+);
+
+CREATE TABLE DT_LOYALTY_RESULT (
+    "LOOKBACK_YEARS" INT NOT NULL,
+    "GENDER_DENOMINATORS_YN" CHAR(1) NOT NULL,
+    "SITE" VARCHAR(100) NOT NULL,
+    "COHORT_NAME" VARCHAR(100) NOT NULL,
+    "PATIENT_NUM" INT NOT NULL,
+    "DEATH_DT" DATE NULL, /* ADDED OCT2022 */
+    "INDEX_DT" DATE NULL,
+    "SEX" VARCHAR(50) NULL,
+    "AGE" INT NULL,
+    "AGE_GRP" VARCHAR(20) NULL,
+    "NUM_DX1" NUMBER(1) NOT NULL,
+    "NUM_DX2" NUMBER(1) NOT NULL,
+    "MED_USE1" NUMBER(1) NOT NULL,
+    "MED_USE2" NUMBER(1) NOT NULL,
+    "MAMMOGRAPHY" NUMBER(1) NOT NULL,
+    "PAP_TEST" NUMBER(1) NOT NULL,
+    "PSA_TEST" NUMBER(1) NOT NULL,
+    "COLONOSCOPY" NUMBER(1) NOT NULL,
+    "FECAL_OCCULT_TEST" NUMBER(1) NOT NULL,
+    "FLU_SHOT" NUMBER(1) NOT NULL,
+    "PNEUMOCOCCAL_VACCINE" NUMBER(1) NOT NULL,
+    "BMI" NUMBER(1) NOT NULL,
+    "A1C" NUMBER(1) NOT NULL,
+    "MEDICAL_EXAM" NUMBER(1) NOT NULL,
+    "INP1_OPT1_VISIT" NUMBER(1) NOT NULL,
+    "OPT2_VISIT" NUMBER(1) NOT NULL,
+    "ED_VISIT" NUMBER(1) NOT NULL,
+    "MDVISIT_PNAME2" NUMBER(1) NOT NULL,
+    "MDVISIT_PNAME3" NUMBER(1) NOT NULL,
+    "ROUTINE_CARE_2" NUMBER(1) NOT NULL,
+    "PREDICTED_SCORE" FLOAT NOT NULL
+);
+
+CREATE TABLE DT_LOYALTY_RESULT_CHARLSON (
+    "LOOKBACK_YEARS" INT NULL,
+    "GENDER_DENOMINATORS_YN" CHAR(1) NULL,
+    "SITE" VARCHAR(100) NULL,
+    "COHORT_NAME" VARCHAR(100) NOT NULL,
+    "PATIENT_NUM" INT NOT NULL,
+    "DEATH_DT" DATE NULL, /* ADDED OCT2022 */
+    "LAST_VISIT" DATE NULL,
+    "SEX" VARCHAR(50) NULL,
+    "AGE" INT NULL,
+    "AGE_GRP" VARCHAR(20) NULL,
+    "CHARLSON_INDEX" INT NULL,
+    "CHARLSON_10YR_PROB" NUMERIC(10, 4) NULL,
+    "MI" INT NULL,
+    "CHF" INT NULL,
+    "CVD" INT NULL,
+    "PVD" INT NULL,
+    "DEMENTIA" INT NULL,
+    "COPD" INT NULL,
+    "RHEUMDIS" INT NULL,
+    "PEPULCER" INT NULL,
+    "MILDLIVDIS" INT NULL,
+    "DIABETES_NOCC" INT NULL,
+    "DIABETES_WTCC" INT NULL,
+    "HEMIPARAPLEG" INT NULL,
+    "RENALDIS" INT NULL,
+    "CANCER" INT NULL,
+    "MSVLIVDIS" INT NULL,
+    "METASTATIC" INT NULL,
+    "AIDSHIV" INT NULL
+);
+
+CREATE TABLE DT_TMP_COHORT_FILTER (
+    "PATIENT_NUM" INTEGER,
+    "COHORT_NAME" VARCHAR(100),
+    "INDEX_DT" DATE
+);
+
+CREATE TABLE DT_TMP_INCLPAT (
+    "PATIENT_NUM" INT PRIMARY KEY
+);
+
+CREATE TABLE DT_TMP_DEMCONCEPT (
+    "CONCEPT_CD" VARCHAR(50),
+    "CONCEPT_PREFIX" VARCHAR(50)
+);
+
+CREATE TABLE DT_TMP_COHORT (
+    "COHORT_NAME" VARCHAR(100) NOT NULL,
+    "PATIENT_NUM" INT NOT NULL,
+    "DEATH_DT" DATE NULL,
+    "SEX" VARCHAR(50) NULL,
+    "AGE" INT NULL,
+    "NUM_DX1" NUMBER(1) DEFAULT 0 NOT NULL,
+    "NUM_DX2" NUMBER(1) DEFAULT 0 NOT NULL,
+    "MED_USE1" NUMBER(1) DEFAULT 0 NOT NULL,
+    "MED_USE2" NUMBER(1) DEFAULT 0 NOT NULL,
+    "MAMMOGRAPHY" NUMBER(1) DEFAULT 0 NOT NULL,
+    "PAP_TEST" NUMBER(1) DEFAULT 0 NOT NULL,
+    "PSA_TEST" NUMBER(1) DEFAULT 0 NOT NULL,
+    "COLONOSCOPY" NUMBER(1) DEFAULT 0 NOT NULL,
+    "FECAL_OCCULT_TEST" NUMBER(1) DEFAULT 0 NOT NULL,
+    "FLU_SHOT" NUMBER(1) DEFAULT 0 NOT NULL,
+    "PNEUMOCOCCAL_VACCINE" NUMBER(1) DEFAULT 0 NOT NULL,
+    "BMI" NUMBER(1) DEFAULT 0 NOT NULL,
+    "A1C" NUMBER(1) DEFAULT 0 NOT NULL,
+    "MEDICAL_EXAM" NUMBER(1) DEFAULT 0 NOT NULL,
+    "INP1_OPT1_VISIT" NUMBER(1) DEFAULT 0 NOT NULL,
+    "OPT2_VISIT" NUMBER(1) DEFAULT 0 NOT NULL,
+    "ED_VISIT" NUMBER(1) DEFAULT 0 NOT NULL,
+    "MDVISIT_PNAME2" NUMBER(1) DEFAULT 0 NOT NULL,
+    "MDVISIT_PNAME3" NUMBER(1) DEFAULT 0 NOT NULL,
+    "ROUTINE_CARE_2" NUMBER(1) DEFAULT 0 NOT NULL,
+    "PREDICTED_SCORE" FLOAT DEFAULT -0.010 NOT NULL,
+    "LAST_VISIT" DATE NULL,
+    "INDEX_DT" DATE NULL,
+    PRIMARY KEY ("COHORT_NAME", "PATIENT_NUM")
+);
+
+CREATE TABLE DT_TMP_COHORT_FLAGS_PSC (
+    "COHORT_NAME" VARCHAR(100),
+    "PATIENT_NUM" INT,
+    "SEX" VARCHAR(50),
+    "AGE" INT,
+    "NUM_DX1" NUMBER(1),
+    "NUM_DX2" NUMBER(1),
+    "MED_USE1" NUMBER(1),
+    "MED_USE2" NUMBER(1),
+    "MAMMOGRAPHY" NUMBER(1),
+    "PAP_TEST" NUMBER(1),
+    "PSA_TEST" NUMBER(1),
+    "COLONOSCOPY" NUMBER(1),
+    "FECAL_OCCULT_TEST" NUMBER(1),
+    "FLU_SHOT" NUMBER(1),
+    "PNEUMOCOCCAL_VACCINE" NUMBER(1),
+    "BMI" NUMBER(1),
+    "A1C" NUMBER(1),
+    "MEDICAL_EXAM" NUMBER(1),
+    "INP1_OPT1_VISIT" NUMBER(1),
+    "OPT2_VISIT" NUMBER(1),
+    "ED_VISIT" NUMBER(1),
+    "MDVISIT_PNAME2" NUMBER(1),
+    "MDVISIT_PNAME3" NUMBER(1),
+    "ROUTINE_CARE_2" NUMBER(1),
+    "PREDICTED_SCORE" FLOAT,
+    "LAST_VISIT" DATE,
+    "INDEX_DT" DATE
+);
+
+CREATE TABLE DT_TMP_COHORT_AGE_GRP (
+    "SITE" VARCHAR(10),
+    "COHORT_NAME" VARCHAR(100),
+    "PATIENT_NUM" INT,
+    "DEATH_DT" DATE,
+    "INDEX_DT" DATE,
+    "SEX" VARCHAR(50),
+    "AGE" INT,
+    "AGE_GRP" VARCHAR(20),
+    "NUM_DX1" NUMBER(1),
+    "NUM_DX2" NUMBER(1),
+    "MED_USE1" NUMBER(1),
+    "MED_USE2" NUMBER(1),
+    "MAMMOGRAPHY" NUMBER(1),
+    "PAP_TEST" NUMBER(1),
+    "PSA_TEST" NUMBER(1),
+    "COLONOSCOPY" NUMBER(1),
+    "FECAL_OCCULT_TEST" NUMBER(1),
+    "FLU_SHOT" NUMBER(1),
+    "PNEUMOCOCCAL_VACCINE" NUMBER(1),
+    "BMI" NUMBER(1),
+    "A1C" NUMBER(1),
+    "MEDICAL_EXAM" NUMBER(1),
+    "INP1_OPT1_VISIT" NUMBER(1),
+    "OPT2_VISIT" NUMBER(1),
+    "ED_VISIT" NUMBER(1),
+    "MDVISIT_PNAME2" NUMBER(1),
+    "MDVISIT_PNAME3" NUMBER(1),
+    "ROUTINE_CARE_2" NUMBER(1),
+    "PREDICTED_SCORE" FLOAT
+);
+
+CREATE TABLE DT_TMP_AGE_GRP_PSC (
+    "COHORT_NAME" VARCHAR(100),
+    "AGE_GRP" VARCHAR(20),
+    "PREDICTIVE_SCORE_CUTOFF" FLOAT
+);
+
+CREATE TABLE DT_TMP_CHARLSON_DX (
+    "CHARLSON_CATGRY" VARCHAR(50), 
+    "CHARLSON_WT" NUMBER(5), 
+    "CONCEPT_CD" VARCHAR(50)
+);
+
+create table DT_TMP_CHARLSON_VISIT_BASE (
+    "COHORT_NAME" VARCHAR(100),
+    "PATIENT_NUM" INT,
+    "SEX" VARCHAR(50),
+    "AGE" INT,
+    "LAST_VISIT" DATE,
+    "CHARLSON_AGE_BASE" INT
+);
+
+CREATE TABLE DT_TMP_COHORT_CHARLSON (
+    "SITE" VARCHAR(10),
+    "COHORT_NAME" VARCHAR(100),
+    "PATIENT_NUM" INT,
+    "LAST_VISIT" DATE,
+    "SEX" VARCHAR(50),
+    "AGE" INT,
+    "AGE_GRP" VARCHAR(20),
+    "CHARLSON_INDEX" INT,
+    "CHARLSON_10YR_PROB" FLOAT,
+    "MI" INT,
+    "CHF" INT,
+    "CVD" INT,
+    "PVD" INT,
+    "DEMENTIA" INT,
+    "COPD" INT,
+    "RHEUMDIS" INT,
+    "PEPULCER" INT,
+    "MILDLIVDIS" INT,
+    "DIABETES_NOCC" INT,
+    "DIABETES_WTCC" INT,
+    "HEMIPARAPLEG" INT,
+    "RENALDIS" INT,
+    "CANCER" INT,
+    "MSVLIVDIS" INT,
+    "METASTATIC" INT,
+    "AIDSHIV" INT
+);
+
+CREATE TABLE DT_TMP_CHARLSON_STATS (
+    "COHORT_NAME" VARCHAR(100),
+    "AGE_GRP" VARCHAR(20),
+    "CUTOFF_FILTER_YN" CHAR(1),
+    "MEDIAN_10YR_PROB" FLOAT,
+    "MEAN_10YR_PROB" FLOAT,
+    "STDEV_10YR_PROB" FLOAT,
+    "MODE_10YR_PROB" FLOAT
+);
+
 
 --##############################################################################
 --##############################################################################
@@ -70,142 +333,142 @@ COMMIT;
 -- Drop existing tables.
 --------------------------------------------------------------------------------
 
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_import_concept_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_concept_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_concept_children'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_patient_partition'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_patient_period_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_feature_count'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_feature_cooccur_temp'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_feature_cooccur'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_embedding'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_phenotype'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
--- BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_keser_phenotype_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_IMPORT_CONCEPT_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_CONCEPT_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_CONCEPT_CHILDREN'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_PATIENT_PARTITION'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_PATIENT_PERIOD_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_FEATURE_COUNT'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_FEATURE_COOCCUR_TEMP'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_FEATURE_COOCCUR'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_EMBEDDING'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_PHENOTYPE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KESER_PHENOTYPE_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
 
 --------------------------------------------------------------------------------
 -- Create tables for mapping features to local concepts.
 --------------------------------------------------------------------------------
 
-create table dt_keser_import_concept_feature (
-	concept_cd varchar(50) not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250) not null
+CREATE TABLE DT_KESER_IMPORT_CONCEPT_FEATURE (
+	CONCEPT_CD VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250) NOT NULL
 );
 
-create table dt_keser_feature (
-	feature_num int not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250) not null,
-	primary key (feature_num)
+CREATE TABLE DT_KESER_FEATURE (
+	FEATURE_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250) NOT NULL,
+	PRIMARY KEY (FEATURE_NUM)
 );
-create index idx_feature_cd on dt_keser_feature(feature_cd);
+CREATE INDEX IDX_FEATURE_CD ON DT_KESER_FEATURE(FEATURE_CD);
 
-create table dt_keser_concept_feature (
-	concept_cd varchar(50) not null,
-	feature_num int not null,
-	primary key (concept_cd, feature_num)
+CREATE TABLE DT_KESER_CONCEPT_FEATURE (
+	CONCEPT_CD VARCHAR(50) NOT NULL,
+	FEATURE_NUM INT NOT NULL,
+	PRIMARY KEY (CONCEPT_CD, FEATURE_NUM)
 );
-create unique index idx_feature_concept on dt_keser_concept_feature(feature_num, concept_cd);
+CREATE UNIQUE INDEX IDX_FEATURE_CONCEPT ON DT_KESER_CONCEPT_FEATURE(FEATURE_NUM, CONCEPT_CD);
 
-create table dt_keser_concept_children (
-	concept_cd varchar(50) not null,
-	child_cd varchar(50) not null,
-	primary key (concept_cd, child_cd)
+CREATE TABLE DT_KESER_CONCEPT_CHILDREN (
+	CONCEPT_CD VARCHAR(50) NOT NULL,
+	CHILD_CD VARCHAR(50) NOT NULL,
+	PRIMARY KEY (CONCEPT_CD, CHILD_CD)
 );
 
 --------------------------------------------------------------------------------
 -- Create tables for patient data.
 --------------------------------------------------------------------------------
 
-create table dt_keser_patient_partition (
-	patient_num int not null,
-	patient_partition number(3,0) not null,
-	primary key (patient_num)
+CREATE TABLE DT_KESER_PATIENT_PARTITION (
+	PATIENT_NUM INT NOT NULL,
+	PATIENT_PARTITION NUMBER(3,0) NOT NULL,
+	PRIMARY KEY (PATIENT_NUM)
 );
 
-create table dt_keser_patient_period_feature (
-	patient_partition number(3,0) not null,
-	patient_num int not null,
-	time_period int not null,
-	feature_num int not null,
-	min_offset smallint not null,
-	max_offset smallint not null,
-	feature_dates smallint,
-	concept_dates int,
-	primary key (patient_partition, patient_num, time_period, feature_num)
+CREATE TABLE DT_KESER_PATIENT_PERIOD_FEATURE (
+	PATIENT_PARTITION NUMBER(3,0) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	TIME_PERIOD INT NOT NULL,
+	FEATURE_NUM INT NOT NULL,
+	MIN_OFFSET SMALLINT NOT NULL,
+	MAX_OFFSET SMALLINT NOT NULL,
+	FEATURE_DATES SMALLINT,
+	CONCEPT_DATES INT,
+	PRIMARY KEY (PATIENT_PARTITION, PATIENT_NUM, TIME_PERIOD, FEATURE_NUM)
 );
 
-create table dt_keser_feature_count (
-	cohort number(3,0) not null,
-	feature_num int not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250) not null,
-	feature_count int not null,
-	primary key (cohort, feature_num)
+CREATE TABLE DT_KESER_FEATURE_COUNT (
+	COHORT NUMBER(3,0) NOT NULL,
+	FEATURE_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250) NOT NULL,
+	FEATURE_COUNT INT NOT NULL,
+	PRIMARY KEY (COHORT, FEATURE_NUM)
 );
 
-create table dt_keser_feature_cooccur_temp (
-	cohort number(3,0) not null,
-	feature_num1 int not null,
-	feature_num2 int not null,
-	num_patients int not null
+CREATE TABLE DT_KESER_FEATURE_COOCCUR_TEMP (
+	COHORT NUMBER(3,0) NOT NULL,
+	FEATURE_NUM1 INT NOT NULL,
+	FEATURE_NUM2 INT NOT NULL,
+	NUM_PATIENTS INT NOT NULL
 );
 
-create table dt_keser_feature_cooccur (
-	cohort number(3,0) not null,
-	feature_num1 int not null,
-	feature_num2 int not null,
-	coocur_count int not null,
-	primary key (cohort, feature_num1, feature_num2)
+CREATE TABLE DT_KESER_FEATURE_COOCCUR (
+	COHORT NUMBER(3,0) NOT NULL,
+	FEATURE_NUM1 INT NOT NULL,
+	FEATURE_NUM2 INT NOT NULL,
+	COOCUR_COUNT INT NOT NULL,
+	PRIMARY KEY (COHORT, FEATURE_NUM1, FEATURE_NUM2)
 );
 
 --------------------------------------------------------------------------------
 -- Create table to store embeddings.
 --------------------------------------------------------------------------------
 
-create table dt_keser_embedding (
-	cohort number(3,0) not null,
-	feature_cd varchar(50) not null,
-	dim int not null,
-	val float not null,
-	primary key (cohort, feature_cd, dim)
+CREATE TABLE DT_KESER_EMBEDDING (
+	COHORT NUMBER(3,0) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	DIM INT NOT NULL,
+	VAL FLOAT NOT NULL,
+	PRIMARY KEY (COHORT, FEATURE_CD, DIM)
 );
 
 --------------------------------------------------------------------------------
 -- Create tables for embedding regression (map phenotypes to features).
 --------------------------------------------------------------------------------
 
-create table dt_keser_phenotype (
-	phenotype varchar(50) not null,
-	primary key (phenotype)
+CREATE TABLE DT_KESER_PHENOTYPE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PRIMARY KEY (PHENOTYPE)
 );
 
-create table dt_keser_phenotype_feature (
-	phenotype varchar(50) not null,
-	feature_cd varchar(50) not null,
-	feature_rank int,
-	feature_beta float,
-	feature_cosine float,
-	primary key (phenotype, feature_cd)
+CREATE TABLE DT_KESER_PHENOTYPE_FEATURE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_RANK INT,
+	FEATURE_BETA FLOAT,
+	FEATURE_COSINE FLOAT,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD)
 );
 
 --------------------------------------------------------------------------------
 -- Truncate tables.
 --------------------------------------------------------------------------------
 
--- truncate table dt_keser_import_concept_feature;
--- truncate table dt_keser_feature;
--- truncate table dt_keser_concept_feature;
--- truncate table dt_keser_concept_children;
--- truncate table dt_keser_patient_partition;
--- truncate table dt_keser_patient_period_feature;
--- truncate table dt_keser_feature_count;
--- truncate table dt_keser_feature_cooccur_temp;
--- truncate table dt_keser_feature_cooccur;
--- truncate table dt_keser_embedding;
--- truncate table dt_keser_phenotype;
--- truncate table dt_keser_phenotype_feature;
+-- TRUNCATE TABLE DT_KESER_IMPORT_CONCEPT_FEATURE;
+-- TRUNCATE TABLE DT_KESER_FEATURE;
+-- TRUNCATE TABLE DT_KESER_CONCEPT_FEATURE;
+-- TRUNCATE TABLE DT_KESER_CONCEPT_CHILDREN;
+-- TRUNCATE TABLE DT_KESER_PATIENT_PARTITION;
+-- TRUNCATE TABLE DT_KESER_PATIENT_PERIOD_FEATURE;
+-- TRUNCATE TABLE DT_KESER_FEATURE_COUNT;
+-- TRUNCATE TABLE DT_KESER_FEATURE_COOCCUR_TEMP;
+-- TRUNCATE TABLE DT_KESER_FEATURE_COOCCUR;
+-- TRUNCATE TABLE DT_KESER_EMBEDDING;
+-- TRUNCATE TABLE DT_KESER_PHENOTYPE;
+-- TRUNCATE TABLE DT_KESER_PHENOTYPE_FEATURE;
 
 
 --##############################################################################
@@ -222,151 +485,161 @@ create table dt_keser_phenotype_feature (
 -- Drop existing tables.
 --------------------------------------------------------------------------------
 
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_feature_dict'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_patient_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_base_cohort'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_sample'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_sample_feature'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_covar_inner'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_covar'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_feature_coef'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_sample_results'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_gmm'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_gold_standard'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE dt_komap_phenotype_patient'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE DERIVED_FACT'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_FEATURE_DICT'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PATIENT_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_BASE_COHORT'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_SAMPLE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_COVAR_INNER'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_COVAR'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_FEATURE_COEF'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_GMM'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_GOLD_STANDARD'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DT_KOMAP_PHENOTYPE_PATIENT'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
+-- -- BEGIN EXECUTE IMMEDIATE 'DROP TABLE DERIVED_FACT'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;
 
 
 --------------------------------------------------------------------------------
 -- Create new tables to list the phenotypes and their features.
 --------------------------------------------------------------------------------
 
-create table dt_komap_phenotype (
-	phenotype varchar(50) not null,
-	phenotype_name varchar(50) not null,
-	threshold float,
-	gmm_mean1 float,
-	gmm_mean2 float,
-	gmm_stdev1 float,
-	gmm_stdev2 float,
-	ppv float,
-	recall float,
-	recall_base_cohort float,
-	recall_has_feature float,
-	frac_feature_in_base_cohort float,
-	generate_facts int,
-	primary key (phenotype)
+CREATE TABLE DT_KOMAP_PHENOTYPE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PHENOTYPE_NAME VARCHAR(50) NOT NULL,
+	THRESHOLD FLOAT,
+	GMM_MEAN1 FLOAT,
+	GMM_MEAN2 FLOAT,
+	GMM_STDEV1 FLOAT,
+	GMM_STDEV2 FLOAT,
+	PPV FLOAT,
+	RECALL FLOAT,
+	RECALL_BASE_COHORT FLOAT,
+	RECALL_HAS_FEATURE FLOAT,
+	FRAC_FEATURE_IN_BASE_COHORT FLOAT,
+	GENERATE_FACTS INT,
+	PRIMARY KEY (PHENOTYPE)
 );
 
-create table dt_komap_phenotype_feature_dict (
-	phenotype varchar(50) not null,
-	feature_cd varchar(50) not null,
-	feature_name varchar(250),
-	primary key (phenotype, feature_cd)
+CREATE TABLE DT_KOMAP_PHENOTYPE_FEATURE_DICT (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	FEATURE_NAME VARCHAR(250),
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD)
 );
 
 --------------------------------------------------------------------------------
 -- Create new tables to generate the input data for KOMAP.
 --------------------------------------------------------------------------------
 
-create table dt_komap_patient_feature (
-	patient_num int not null,
-	feature_cd varchar(50) not null,
-	num_dates int not null,
-	log_dates float not null,
-	primary key (feature_cd, patient_num)
+CREATE TABLE DT_KOMAP_PATIENT_FEATURE (
+	PATIENT_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	NUM_DATES INT NOT NULL,
+	LOG_DATES FLOAT NOT NULL,
+	PRIMARY KEY (FEATURE_CD, PATIENT_NUM)
 );
 
-create table dt_komap_base_cohort (
-	patient_num int not null,
-	primary key (patient_num)
+CREATE TABLE DT_KOMAP_BASE_COHORT (
+	PATIENT_NUM INT NOT NULL,
+	PRIMARY KEY (PATIENT_NUM)
 );
 
-create table dt_komap_phenotype_sample (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	primary key (phenotype, patient_num)
+CREATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
-create table dt_komap_phenotype_sample_feature (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	feature_cd varchar(50) not null,
-	num_dates int not null,
-	log_dates float not null,
-	primary key (phenotype, feature_cd, patient_num)
+CREATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	NUM_DATES INT NOT NULL,
+	LOG_DATES FLOAT NOT NULL,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD, PATIENT_NUM)
 );
 
-create table dt_komap_phenotype_covar_inner (
-	phenotype varchar(50) not null,
-	feature_cd1 varchar(50) not null,
-	feature_cd2 varchar(50) not null,
-	num_patients int,
-	sum_log_dates float,
-	primary key (phenotype, feature_cd1, feature_cd2)
+CREATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP (
+    PHENOTYPE VARCHAR(50) NOT NULL,
+    PATIENT_NUM INT NOT NULL,
+    FEATURE_CD VARCHAR(50) NOT NULL,
+    NUM_DATES INT NOT NULL,
+    LOG_DATES FLOAT NOT NULL,
+    PRIMARY KEY (PATIENT_NUM, FEATURE_CD)
 );
 
-create table dt_komap_phenotype_covar (
-	phenotype varchar(50) not null,
-	feature_cd1 varchar(50) not null,
-	feature_cd2 varchar(50) not null,
-	covar float,
-	primary key (phenotype, feature_cd1, feature_cd2)
+CREATE TABLE DT_KOMAP_PHENOTYPE_COVAR_INNER (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD1 VARCHAR(50) NOT NULL,
+	FEATURE_CD2 VARCHAR(50) NOT NULL,
+	NUM_PATIENTS INT,
+	SUM_LOG_DATES FLOAT,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD1, FEATURE_CD2)
 );
 
-create table dt_komap_phenotype_feature_coef (
-	phenotype varchar(50) not null,
-	feature_cd varchar(50) not null,
-	coef float not null,
-	primary key (phenotype, feature_cd)
+CREATE TABLE DT_KOMAP_PHENOTYPE_COVAR (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD1 VARCHAR(50) NOT NULL,
+	FEATURE_CD2 VARCHAR(50) NOT NULL,
+	COVAR FLOAT,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD1, FEATURE_CD2)
+);
+
+CREATE TABLE DT_KOMAP_PHENOTYPE_FEATURE_COEF (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	FEATURE_CD VARCHAR(50) NOT NULL,
+	COEF FLOAT NOT NULL,
+	PRIMARY KEY (PHENOTYPE, FEATURE_CD)
 );
 
 --------------------------------------------------------------------------------
 -- Create new tables to store and process the results of KOMAP.
 --------------------------------------------------------------------------------
 
-create table dt_komap_phenotype_sample_results (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	score float,
-	phecode_dates int,
-	utilization_dates int,
-	phecode_score float,
-	utilization_score float,
-	other_positive_feature_score float,
-	other_negative_feature_score float,
-	primary key (phenotype, patient_num)
+CREATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	SCORE FLOAT,
+	PHECODE_DATES INT,
+	UTILIZATION_DATES INT,
+	PHECODE_SCORE FLOAT,
+	UTILIZATION_SCORE FLOAT,
+	OTHER_POSITIVE_FEATURE_SCORE FLOAT,
+	OTHER_NEGATIVE_FEATURE_SCORE FLOAT,
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
-create table dt_komap_phenotype_gmm (
-	phenotype varchar(50) not null,
-	score_percentile int not null,
-	score float,
-	m1 float,
-	m2 float,
-	s1 float,
-	s2 float,
-	g1 float,
-	g2 float,
-	p1 float,
-	p2 float,
-	primary key (phenotype, score_percentile)
+CREATE TABLE DT_KOMAP_PHENOTYPE_GMM (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	SCORE_PERCENTILE INT NOT NULL,
+	SCORE FLOAT,
+	M1 FLOAT,
+	M2 FLOAT,
+	S1 FLOAT,
+	S2 FLOAT,
+	G1 FLOAT,
+	G2 FLOAT,
+	P1 FLOAT,
+	P2 FLOAT,
+	PRIMARY KEY (PHENOTYPE, SCORE_PERCENTILE)
 );
 
-create table dt_komap_phenotype_gold_standard (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	has_phenotype int,
-	score float null,
-	primary key (phenotype, patient_num)
+CREATE TABLE DT_KOMAP_PHENOTYPE_GOLD_STANDARD (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	HAS_PHENOTYPE INT,
+	SCORE FLOAT NULL,
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
-create table dt_komap_phenotype_patient (
-	phenotype varchar(50) not null,
-	patient_num int not null,
-	score float,
-	primary key (phenotype, patient_num)
+CREATE TABLE DT_KOMAP_PHENOTYPE_PATIENT (
+	PHENOTYPE VARCHAR(50) NOT NULL,
+	PATIENT_NUM INT NOT NULL,
+	SCORE FLOAT,
+	PRIMARY KEY (PHENOTYPE, PATIENT_NUM)
 );
 
 --------------------------------------------------------------------------------
@@ -374,52 +647,53 @@ create table dt_komap_phenotype_patient (
 --------------------------------------------------------------------------------
 
 
-create table DERIVED_FACT(
-	ENCOUNTER_NUM int NOT NULL,
-	PATIENT_NUM int NOT NULL,
-	CONCEPT_CD varchar(50) NOT NULL,
-	PROVIDER_ID varchar(50) NOT NULL,
-	START_DATE date NOT NULL,
-	MODIFIER_CD varchar(100) NOT NULL,
-	INSTANCE_NUM int NOT NULL,
-	VALTYPE_CD varchar(50),
-	TVAL_CHAR varchar(255),
-	NVAL_NUM number(18,5),
-	VALUEFLAG_CD varchar(50),
-	QUANTITY_NUM number(18,5),
-	UNITS_CD varchar(50),
-	END_DATE date NULL,
-	LOCATION_CD varchar(50),
-	OBSERVATION_BLOB clob NULL,
-	CONFIDENCE_NUM number(18,5),
-	UPDATE_DATE date NULL,
-	DOWNLOAD_DATE date NULL,
-	IMPORT_DATE date NULL,
-	SOURCESYSTEM_CD varchar(50),
-	UPLOAD_ID int
-);
-alter table DERIVED_FACT add primary key (CONCEPT_CD,PATIENT_NUM,ENCOUNTER_NUM,START_DATE,PROVIDER_ID,INSTANCE_NUM,MODIFIER_CD);
-create index DF_IDX_CONCEPT_DATE_PATIENT on DERIVED_FACT  (CONCEPT_CD, START_DATE, PATIENT_NUM);
-create index DF_IDX_ENCOUNTER_PATIENT_CONCEPT_DATE on DERIVED_FACT  (ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, START_DATE);
-create index DF_IDX_PATIENT_CONCEPT_DATE on DERIVED_FACT  (PATIENT_NUM, CONCEPT_CD, START_DATE);
-
+-- CREATE TABLE DERIVED_FACT(
+-- 	ENCOUNTER_NUM INT NOT NULL,
+-- 	PATIENT_NUM INT NOT NULL,
+-- 	CONCEPT_CD VARCHAR(50) NOT NULL,
+-- 	PROVIDER_ID VARCHAR(50) NOT NULL,
+-- 	START_DATE DATE NOT NULL,
+-- 	MODIFIER_CD VARCHAR(100) NOT NULL,
+-- 	INSTANCE_NUM INT NOT NULL,
+-- 	VALTYPE_CD VARCHAR(50),
+-- 	TVAL_CHAR VARCHAR(255),
+-- 	NVAL_NUM NUMBER(18,5),
+-- 	VALUEFLAG_CD VARCHAR(50),
+-- 	QUANTITY_NUM NUMBER(18,5),
+-- 	UNITS_CD VARCHAR(50),
+-- 	END_DATE DATE NULL,
+-- 	LOCATION_CD VARCHAR(50),
+-- 	OBSERVATION_BLOB CLOB NULL,
+-- 	CONFIDENCE_NUM NUMBER(18,5),
+-- 	UPDATE_DATE DATE NULL,
+-- 	DOWNLOAD_DATE DATE NULL,
+-- 	IMPORT_DATE DATE NULL,
+-- 	SOURCESYSTEM_CD VARCHAR(50),
+-- 	UPLOAD_ID INT
+-- );
+-- ALTER TABLE DERIVED_FACT ADD PRIMARY KEY (CONCEPT_CD,PATIENT_NUM,ENCOUNTER_NUM,START_DATE,PROVIDER_ID,INSTANCE_NUM,MODIFIER_CD);
+-- CREATE INDEX DF_IDX_CONCEPT_DATE_PATIENT ON DERIVED_FACT  (CONCEPT_CD, START_DATE, PATIENT_NUM);
+-- CREATE INDEX DF_IDX_ENCOUNTER_PATIENT_CONCEPT_DATE ON DERIVED_FACT  (ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, START_DATE);
+-- CREATE INDEX DF_IDX_PATIENT_CONCEPT_DATE ON DERIVED_FACT  (PATIENT_NUM, CONCEPT_CD, START_DATE);
+--
 
 
 --------------------------------------------------------------------------------
 -- Truncate tables.
 --------------------------------------------------------------------------------
 
--- truncate table dt_komap_phenotype;
--- truncate table dt_komap_phenotype_feature_dict;
--- truncate table dt_komap_patient_feature;
--- truncate table dt_komap_base_cohort;
--- truncate table dt_komap_phenotype_sample;
--- truncate table dt_komap_phenotype_sample_feature;
--- truncate table dt_komap_phenotype_covar_inner;
--- truncate table dt_komap_phenotype_covar;
--- truncate table dt_komap_phenotype_feature_coef;
--- truncate table dt_komap_phenotype_sample_results;
--- truncate table dt_komap_phenotype_gmm;
--- truncate table dt_komap_phenotype_gold_standard;
--- truncate table dt_komap_phenotype_patient;
--- truncate table DERIVED_FACT;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_FEATURE_DICT;
+-- TRUNCATE TABLE DT_KOMAP_PATIENT_FEATURE;
+-- TRUNCATE TABLE DT_KOMAP_BASE_COHORT;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE_FEATURE_TEMP;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_COVAR_INNER;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_COVAR;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_FEATURE_COEF;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_SAMPLE_RESULTS;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_GMM;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_GOLD_STANDARD;
+-- TRUNCATE TABLE DT_KOMAP_PHENOTYPE_PATIENT;
+-- TRUNCATE TABLE DERIVED_FACT;

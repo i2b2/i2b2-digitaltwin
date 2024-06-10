@@ -9,10 +9,10 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_komap_get_patients') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_get_patients;;
+-- IF OBJECT_ID(N'dbo.usp_dt_komap_get_patients') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_get_patients;;
 
 
-CREATE PROCEDURE dbo.usp_dt_komap_get_patients
+CREATE PROCEDURE DBO.USP_DT_KOMAP_GET_PATIENTS
 AS
 BEGIN
 
@@ -83,8 +83,8 @@ insert into dbo.dt_komap_patient_feature (patient_num, feature_cd, num_dates, lo
 		select patient_num, count(distinct feature_date) num_dates
 		from dbo.observation_fact with (nolock)
 			cross apply (select cast(start_date as date) feature_date) d
-		where concept_cd like 'DIAG|ICD%'
-		group by patient_num
+		where concept_cd like 'DIAG|ICD%' -- or 'ICD%' for ACT ontology
+        group by patient_num
 	) t;
 
 
@@ -141,7 +141,8 @@ insert into dbo.dt_komap_base_cohort (patient_num)
 	select patient_num
 	from dbo.observation_fact
 		cross apply (select cast(start_date as date) d) d
-	where concept_cd like 'DIAG|ICD%' and start_date>='1/1/2010'
+	where concept_cd like 'DIAG|ICD%' -- or 'ICD%' for ACT ontology
+	    and start_date>='1/1/2010'
 	group by patient_num
 	having count(distinct d)>=3;
 

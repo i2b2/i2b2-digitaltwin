@@ -9,10 +9,10 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_komap_generate_phenotype') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_generate_phenotype;;
+-- IF OBJECT_ID(N'dbo.usp_dt_komap_generate_phenotype') IS NOT NULL DROP PROCEDURE dbo.usp_dt_komap_generate_phenotype;;
 
 
-CREATE PROCEDURE dbo.usp_dt_komap_generate_phenotype
+CREATE PROCEDURE DBO.USP_DT_KOMAP_GENERATE_PHENOTYPE
 AS
 BEGIN
 

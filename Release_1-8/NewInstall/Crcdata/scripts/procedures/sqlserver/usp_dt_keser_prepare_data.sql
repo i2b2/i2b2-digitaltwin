@@ -9,11 +9,11 @@
 
 
 -- Drop the procedure if it already exists
-IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_data;;
+-- IF OBJECT_ID(N'dbo.usp_dt_keser_prepare_data') IS NOT NULL DROP PROCEDURE dbo.usp_dt_keser_prepare_data;;
 
 
 
-CREATE PROCEDURE dbo.usp_dt_keser_prepare_data
+CREATE PROCEDURE DBO.USP_DT_KESER_PREPARE_DATA
 AS
 BEGIN
 
