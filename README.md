@@ -9,6 +9,20 @@ The i2b2 digital twin scripts are maintained by the i2b2 team.
 ## Documentation
 The documentation for installing the digital twin computed phenotypes is at: https://docs.google.com/document/d/1Th98QZimCQ4w-cj_15lDc6zYUiwypLs7sQ0dioBsY-M/edit#heading=h.hn0g2vivalv9 
 
+### SQL Server ACT-OMOP loyalty cohort
+
+For ACT-OMOP on SQL Server, build the standard ACT-OMOP compatibility views before installing the Digital Twin procedures. The source objects may also be SQL Server synonyms pointing to views in another schema or database. The numerically prefixed `00_dt_loyaltycohort_prep_omop.sql` script then creates the limited `OBSERVATION_FACT` compatibility view required by `USP_DT_LOYALTYCOHORT`. It will not replace a real i2b2 `OBSERVATION_FACT` table.
+
+The supported installation order is:
+
+1. Build the ACT-OMOP SQL Server views.
+2. Create the Digital Twin tables and cohort-filter type.
+3. Load the loyalty reference data.
+4. Install the SQL Server procedures; the numeric prefix runs the OMOP prep before the loyalty procedure.
+5. Run `scripts/validation/sqlserver/validate_dt_loyaltycohort_omop.sql`, then test a small cohort before a production run.
+
+The shared ACT-OMOP `PATIENT_DIMENSION` view is not modified. `TABLE_ACCESS`, `CONCEPT_DIMENSION`, and the OMOP `CONCEPT` vocabulary may be local tables, views, or synonyms. The loyalty procedure normalizes OMOP gender concept IDs itself. ACT-OMOP currently supplies a null `DEATH_DATE`, so loyalty `DEATH_DT` remains null until death mapping is implemented separately.
+
 
 ## Reporting Issues
 If an issue is found with the i2b2 digital twin scripts please submit an issue in the [i2b2 Bug Tracker](http://community.i2b2.org/jira/secure/Dashboard.jspa "i2b2 Bug Tracker") under the *i2b2 Core Software* project.
