@@ -17,8 +17,8 @@ SELECT prerequisite, object_name, expected_type,
   END status
 FROM (VALUES
   ('OMOP fact compatibility', 'dbo.OBSERVATION_FACT', 'VIEW'),
-  ('OMOP patient compatibility', 'dbo.PATIENT_DIMENSION', 'VIEW'),
-  ('OMOP visit compatibility', 'dbo.VISIT_DIMENSION', 'VIEW'),
+  ('OMOP patient compatibility', 'dbo.PATIENT_DIMENSION', 'TABLE, VIEW, OR SYNONYM'),
+  ('OMOP visit compatibility', 'dbo.VISIT_DIMENSION', 'TABLE, VIEW, OR SYNONYM'),
   ('OMOP vocabulary', 'dbo.CONCEPT', 'TABLE, VIEW, OR SYNONYM'),
   ('Ontology registry', 'dbo.TABLE_ACCESS', 'TABLE, VIEW, OR SYNONYM'),
   ('Loyalty paths', 'dbo.DT_LOYALTY_PATHS', 'TABLE'),
@@ -69,7 +69,11 @@ BEGIN
     SELECT DISTINCT L.CONCEPT_PATH
     FROM dbo.DT_LOYALTY_PATHS L
     WHERE L.CONCEPT_PATH IS NOT NULL AND L.CONCEPT_PATH <> ''**Not Found''
-      AND EXISTS (SELECT 1 FROM ' + @object_name + N' O WHERE O.C_FULLNAME LIKE L.CONCEPT_PATH + ''%'')
+      AND EXISTS (
+        SELECT 1 FROM ' + @object_name + N' O
+        WHERE O.C_FULLNAME LIKE L.CONCEPT_PATH + ''%''
+          AND NULLIF(CONVERT(varchar(50), O.C_BASECODE), '''') IS NOT NULL
+      )
       AND NOT EXISTS (SELECT 1 FROM #DT_LOYALTY_PATH_MATCH M WHERE M.CONCEPT_PATH = L.CONCEPT_PATH)'
   EXEC sys.sp_executesql @sql
   FETCH NEXT FROM ontology_cursor INTO @table_name
@@ -94,6 +98,71 @@ SELECT 'fact feature path matches', COUNT_BIG(*)
 FROM #DT_LOYALTY_PATH_MATCH M
 JOIN dbo.DT_LOYALTY_PATHS L ON L.CONCEPT_PATH = M.CONCEPT_PATH
 WHERE L.CODE_TYPE IN ('DX', 'PX', 'LAB', 'MEDS', 'SITE')
+
+-- Diagnose visit flags by comparing codes obtained from the registered
+-- ACT_VISIT ontology with codes actually present in VISIT_DIMENSION.
+DROP TABLE IF EXISTS #DT_LOYALTY_VISIT_CODES
+CREATE TABLE #DT_LOYALTY_VISIT_CODES (
+  FEATURE_NAME varchar(50),
+  CONCEPT_PATH varchar(500),
+  CONCEPT_CD varchar(50)
+)
+
+DECLARE @visit_table_name varchar(400) = NULL
+DECLARE @visit_object_name nvarchar(1035)
+DECLARE @visit_sql nvarchar(max)
+
+SELECT TOP (1) @visit_table_name = C_TABLE_NAME
+FROM dbo.TABLE_ACCESS
+WHERE UPPER(C_TABLE_CD) = 'ACT_VISIT'
+  AND NULLIF(C_TABLE_NAME, '') IS NOT NULL
+
+IF @visit_table_name IS NOT NULL
+BEGIN
+  SET @visit_object_name = CASE
+    WHEN PARSENAME(@visit_table_name, 4) IS NOT NULL THEN QUOTENAME(PARSENAME(@visit_table_name, 4)) + '.' + QUOTENAME(PARSENAME(@visit_table_name, 3)) + '.' + QUOTENAME(PARSENAME(@visit_table_name, 2)) + '.' + QUOTENAME(PARSENAME(@visit_table_name, 1))
+    WHEN PARSENAME(@visit_table_name, 3) IS NOT NULL THEN QUOTENAME(PARSENAME(@visit_table_name, 3)) + '.' + QUOTENAME(PARSENAME(@visit_table_name, 2)) + '.' + QUOTENAME(PARSENAME(@visit_table_name, 1))
+    WHEN PARSENAME(@visit_table_name, 2) IS NOT NULL THEN QUOTENAME(PARSENAME(@visit_table_name, 2)) + '.' + QUOTENAME(PARSENAME(@visit_table_name, 1))
+    ELSE 'dbo.' + QUOTENAME(PARSENAME(@visit_table_name, 1)) END
+
+  SET @visit_sql = N'
+    INSERT INTO #DT_LOYALTY_VISIT_CODES (FEATURE_NAME, CONCEPT_PATH, CONCEPT_CD)
+    SELECT DISTINCT L.FEATURE_NAME, L.CONCEPT_PATH,
+      CONVERT(varchar(50), O.C_BASECODE)
+    FROM dbo.DT_LOYALTY_PATHS L
+    JOIN ' + @visit_object_name + N' O
+      ON O.C_FULLNAME LIKE L.CONCEPT_PATH + ''%''
+    WHERE L.CODE_TYPE = ''VISIT''
+      AND NULLIF(CONVERT(varchar(50), O.C_BASECODE), '''') IS NOT NULL'
+  EXEC sys.sp_executesql @visit_sql
+END
+
+SELECT
+  C.FEATURE_NAME,
+  C.CONCEPT_PATH,
+  C.CONCEPT_CD expected_inout_cd,
+  COUNT_BIG(V.PATIENT_NUM) matching_visit_rows,
+  COUNT_BIG(DISTINCT V.PATIENT_NUM) matching_patients
+FROM #DT_LOYALTY_VISIT_CODES C
+LEFT JOIN dbo.VISIT_DIMENSION V
+  ON LTRIM(RTRIM(CONVERT(varchar(50), V.INOUT_CD))) = C.CONCEPT_CD
+GROUP BY C.FEATURE_NAME, C.CONCEPT_PATH, C.CONCEPT_CD
+ORDER BY C.FEATURE_NAME, C.CONCEPT_PATH, C.CONCEPT_CD
+
+-- These are the most common visit codes that are not covered by any configured
+-- loyalty visit path. A populated result helps distinguish a mapping problem
+-- from a cohort/lookback-date problem.
+SELECT TOP (25)
+  LTRIM(RTRIM(CONVERT(varchar(50), V.INOUT_CD))) actual_inout_cd,
+  COUNT_BIG(*) visit_rows,
+  COUNT_BIG(DISTINCT V.PATIENT_NUM) patients
+FROM dbo.VISIT_DIMENSION V
+WHERE NOT EXISTS (
+  SELECT 1 FROM #DT_LOYALTY_VISIT_CODES C
+  WHERE C.CONCEPT_CD = LTRIM(RTRIM(CONVERT(varchar(50), V.INOUT_CD)))
+)
+GROUP BY LTRIM(RTRIM(CONVERT(varchar(50), V.INOUT_CD)))
+ORDER BY COUNT_BIG(*) DESC
 
 -- NOTICE: ACT-OMOP currently exposes NULL DEATH_DATE in PATIENT_DIMENSION.
 -- A zero nonnull_death_date count is expected until death mapping is added.
