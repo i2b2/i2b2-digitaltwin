@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loyalty × Health Burden Atlas</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18323c;
+      --muted: #60747b;
+      --paper: #f5f2e9;
+      --panel: #fffdf7;
+      --line: #d7d8ce;
+      --teal: #087e8b;
+      --gold: #f2b134;
+      --coral: #e65f5c;
+      --blue: #3d6fb6;
+      --shadow: 0 12px 36px rgba(24, 50, 60, .09);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 1440px; margin: 0 auto; padding: 28px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+    h1 { margin: 0; font: 650 clamp(28px, 4vw, 50px)/1.02 Georgia, serif; letter-spacing: -.025em; }
+    h1 span { color: var(--teal); }
+    .subtitle { max-width: 720px; margin: 8px 0 0; color: var(--muted); }
+    button, select, input { font: inherit; }
+    button, .file-label { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--panel); color: var(--ink); cursor: pointer; }
+    button:hover, .file-label:hover { border-color: var(--teal); }
+    .file-label input { display: none; }
+    .loader { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; padding: 14px; background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; }
+    .file-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+    .filename { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status { margin: 10px 2px 18px; color: var(--muted); }
+    .status.error { color: #a32e2e; }
+    .controls { display: none; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .controls label { color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+    .controls select { display: block; width: 100%; margin-top: 4px; border: 1px solid var(--line); border-radius: 7px; padding: 7px 8px; background: var(--panel); color: var(--ink); }
+    .stats { display: none; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat { padding: 14px 16px; background: var(--ink); color: white; border-radius: 10px; }
+    .stat-label { color: #c8d4d7; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-value { margin-top: 2px; font: 650 26px/1.1 Georgia, serif; }
+    .dashboard { display: none; grid-template-columns: minmax(0, 1.45fr) minmax(330px, .8fr); gap: 18px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 18px; break-inside: avoid; }
+    .panel h2 { margin: 0; font: 650 21px/1.2 Georgia, serif; }
+    .panel-note { margin: 4px 0 12px; color: var(--muted); font-size: 13px; }
+    .landscape { grid-column: 1; }
+    .charlson { grid-column: 2; grid-row: 1 / span 2; }
+    .features { grid-column: 1; }
+    svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .axis { fill: var(--muted); font-size: 11px; }
+    .axis-title { fill: var(--ink); font-size: 12px; font-weight: 650; }
+    .grid-line { stroke: var(--line); stroke-width: 1; }
+    .cell { transition: opacity .15s; }
+    .cell:hover { opacity: .72; }
+    .empty { padding: 60px 20px; color: var(--muted); text-align: center; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 50%; }
+    .tooltip { position: fixed; z-index: 20; display: none; max-width: 280px; pointer-events: none; background: var(--ink); color: white; padding: 8px 10px; border-radius: 7px; font-size: 12px; box-shadow: var(--shadow); }
+    footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 900px) {
+      main { padding: 18px; }
+      header { align-items: start; flex-direction: column; }
+      .loader { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: repeat(2, 1fr); }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .dashboard { grid-template-columns: 1fr; }
+      .landscape, .charlson, .features { grid-column: 1; grid-row: auto; }
+    }
+    @media print {
+      @page { size: landscape; margin: 9mm; }
+      body { background: white; }
+      main { max-width: none; padding: 0; }
+      .loader, .controls, .status, header button, footer { display: none !important; }
+      .stats, .dashboard { display: grid !important; }
+      .panel { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Who does the health system <span>know best?</span></h1>
+      <p class="subtitle">A loyalty × health-burden atlas built from the i2b2 Digital Twin loyalty cohort and Charlson results.</p>
+    </div>
+    <button id="printButton" type="button">Print / save PDF</button>
+  </header>
+
+  <section class="loader" aria-label="Load visualization data">
+    <label class="file-label">Landscape CSV <span class="filename" id="landscapeName">Choose file…</span><input id="landscapeFile" type="file" accept=".csv,text/csv"></label>
+    <label class="file-label">Charlson profile CSV <span class="filename" id="profileName">Choose file…</span><input id="profileFile" type="file" accept=".csv,text/csv"></label>
+    <button id="demoButton" type="button">Preview with sample data</button>
+  </section>
+  <div class="status" id="status" role="status">Load both CSV extracts to begin. Data remains in this browser tab.</div>
+
+  <section class="controls" id="controls" aria-label="Visualization filters">
+    <label>Site<select id="SITE"></select></label>
+    <label>Cohort<select id="COHORT_NAME"></select></label>
+    <label>Lookback<select id="LOOKBACK_YEARS"></select></label>
+    <label>Gender model<select id="GENDER_DENOMINATORS_YN"></select></label>
+    <label>Age group<select id="AGE_GRP"></select></label>
+    <label>Sex<select id="SEX"></select></label>
+  </section>
+
+  <section class="stats" id="stats" aria-label="Selected population summary">
+    <div class="stat"><div class="stat-label">Represented patients</div><div class="stat-value" id="patientStat">—</div></div>
+    <div class="stat"><div class="stat-label">Mean loyalty score</div><div class="stat-value" id="loyaltyStat">—</div></div>
+    <div class="stat"><div class="stat-label">Mean Charlson index</div><div class="stat-value" id="charlsonStat">—</div></div>
+    <div class="stat"><div class="stat-label">Conditions per 100 patients</div><div class="stat-value" id="conditionStat">—</div></div>
+  </section>
+
+  <section class="dashboard" id="dashboard">
+    <article class="panel landscape">
+      <h2>Loyalty × burden landscape</h2>
+      <p class="panel-note">Patient density across within-cohort loyalty deciles and Charlson index bands.</p>
+      <div id="landscapeChart"></div>
+    </article>
+    <article class="panel charlson">
+      <h2>Comorbidity signature</h2>
+      <p class="panel-note">Condition prevalence in lower, middle, and upper loyalty thirds.</p>
+      <div id="charlsonChart"></div>
+      <div class="legend"><span><i class="swatch" style="background:var(--blue)"></i>Lower</span><span><i class="swatch" style="background:var(--gold)"></i>Middle</span><span><i class="swatch" style="background:var(--coral)"></i>Upper</span></div>
+    </article>
+    <article class="panel features">
+      <h2>Loyalty fingerprint</h2>
+      <p class="panel-note">Percent of patients with each observable feature, by loyalty decile.</p>
+      <div id="featureChart"></div>
+    </article>
+  </section>
+  <footer>Aggregated cells below the disclosure threshold are absent from the extracts. Counts therefore describe represented, not necessarily total, patients.</footer>
+</main>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+
+<script>
+(() => {
+  'use strict';
+  const dims = ['SITE','COHORT_NAME','LOOKBACK_YEARS','GENDER_DENOMINATORS_YN','AGE_GRP','SEX'];
+  const bands = ['0','1','2','3-4','5+'];
+  const tiers = ['Lower','Middle','Upper'];
+  const tierColors = {Lower:'var(--blue)', Middle:'var(--gold)', Upper:'var(--coral)'};
+  const features = [
+    ['NUM_DX1_COUNT','Diagnosis threshold 1'], ['NUM_DX2_COUNT','Diagnosis threshold 2'],
+    ['MED_USE1_COUNT','Medication threshold 1'], ['MED_USE2_COUNT','Medication threshold 2'],
+    ['MAMMOGRAPHY_COUNT','Mammography'], ['PAP_TEST_COUNT','Pap test'], ['PSA_TEST_COUNT','PSA test'],
+    ['COLONOSCOPY_COUNT','Colonoscopy'], ['FECAL_OCCULT_TEST_COUNT','Fecal occult test'],
+    ['FLU_SHOT_COUNT','Influenza vaccine'], ['PNEUMOCOCCAL_VACCINE_COUNT','Pneumococcal vaccine'],
+    ['BMI_COUNT','BMI measurement'], ['A1C_COUNT','A1C measurement'], ['MEDICAL_EXAM_COUNT','Medical examination'],
+    ['INP1_OPT1_VISIT_COUNT','Inpatient / outpatient visit'], ['OPT2_VISIT_COUNT','Repeat outpatient visit'],
+    ['ED_VISIT_COUNT','Emergency visit'], ['MDVISIT_PNAME2_COUNT','Physician visit level 2'],
+    ['MDVISIT_PNAME3_COUNT','Physician visit level 3'], ['ROUTINE_CARE_2_COUNT','Routine care composite']
+  ];
+  let landscape = [], profile = [];
+  const $ = id => document.getElementById(id);
+  const tooltip = $('tooltip');
+
+  function parseCSV(text) {
+    const rows = []; let row = [], field = '', quoted = false;
+    for (let i=0; i<text.length; i++) {
+      const c=text[i], n=text[i+1];
+      if (quoted && c==='"' && n==='"') { field+='"'; i++; }
+      else if (c==='"') quoted=!quoted;
+      else if (!quoted && c===',') { row.push(field.trim()); field=''; }
+      else if (!quoted && (c==='\n' || c==='\r')) {
+        if (c==='\r' && n==='\n') i++;
+        row.push(field.trim()); field='';
+        if (row.some(v=>v!=='')) rows.push(row); row=[];
+      } else field+=c;
+    }
+    if (field || row.length) { row.push(field.trim()); rows.push(row); }
+    if (rows.length<2) return [];
+    const headers=rows[0].map(h=>h.replace(/^\uFEFF/, '').toUpperCase());
+    return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]??''])));
+  }
+
+  function numberRows(rows) {
+    const numeric = /(_COUNT|_YEARS|_DECILE|_INDEX|_PROB|_PERCENT|_SCORE)$/;
+    return rows.map(r => Object.fromEntries(Object.entries(r).map(([k,v]) => [k, numeric.test(k) && v!=='' ? Number(v) : v])));
+  }
+
+  async function loadFile(input, kind) {
+    const file=input.files[0]; if (!file) return;
+    const rows=numberRows(parseCSV(await file.text()));
+    if (kind==='landscape') { landscape=rows; $('landscapeName').textContent=file.name; }
+    else { profile=rows; $('profileName').textContent=file.name; }
+    initialize();
+  }
+
+  function initialize() {
+    if (!landscape.length || !profile.length) {
+      $('status').textContent='One file loaded; choose the other CSV extract.'; return;
+    }
+    const requiredL=['PATIENT_COUNT','LOYALTY_DECILE','CHARLSON_BAND','MEAN_LOYALTY_SCORE'];
+    const requiredP=['PATIENT_COUNT','CONDITION_COUNT','LOYALTY_GROUP','CHARLSON_CATEGORY'];
+    const missing=[...requiredL.filter(k=>!(k in landscape[0])), ...requiredP.filter(k=>!(k in profile[0]))];
+    if (missing.length) { $('status').className='status error'; $('status').textContent='Missing expected columns: '+missing.join(', '); return; }
+    $('status').className='status'; $('status').textContent=`Loaded ${landscape.length.toLocaleString()} landscape cells and ${profile.length.toLocaleString()} condition groups.`;
+    $('controls').style.display='grid'; $('stats').style.display='grid'; $('dashboard').style.display='grid';
+    dims.forEach(dim => {
+      const select=$(dim), previous=select.value;
+      const values=[...new Set(landscape.map(r=>String(r[dim])))].filter(Boolean).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+      select.innerHTML='<option value="">All</option>'+values.map(v=>`<option>${escapeHTML(v)}</option>`).join('');
+      if (values.includes(previous)) select.value=previous;
+      select.onchange=render;
+    });
+    render();
+  }
+
+  function selected(rows) { return rows.filter(r => dims.every(d => !$(d).value || String(r[d])===$(d).value)); }
+  const sum=(rows,key)=>rows.reduce((a,r)=>a+(Number(r[key])||0),0);
+  function weighted(rows,key) { const n=sum(rows,'PATIENT_COUNT'); return n ? rows.reduce((a,r)=>a+(Number(r[key])||0)*(Number(r.PATIENT_COUNT)||0),0)/n : 0; }
+  function escapeHTML(v) { return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function showTip(e, html) { tooltip.innerHTML=html; tooltip.style.display='block'; tooltip.style.left=Math.min(e.clientX+12,innerWidth-290)+'px'; tooltip.style.top=Math.min(e.clientY+12,innerHeight-100)+'px'; }
+  function hideTip(){ tooltip.style.display='none'; }
+  function svgEl(name, attrs={}, text='') { const el=document.createElementNS('http://www.w3.org/2000/svg',name); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); if(text)el.textContent=text; return el; }
+  function empty(container,text){ container.innerHTML=`<div class="empty">${escapeHTML(text)}</div>`; }
+
+  function render() {
+    const l=selected(landscape), p=selected(profile);
+    if (!l.length) { empty($('landscapeChart'),'No represented cells for these filters.'); empty($('featureChart'),'No represented cells for these filters.'); }
+    else { renderLandscape(l); renderFeatures(l); }
+    if (!p.length) empty($('charlsonChart'),'No represented groups for these filters.'); else renderCharlson(p);
+    const patients=sum(l,'PATIENT_COUNT');
+    $('patientStat').textContent=Math.round(patients).toLocaleString();
+    $('loyaltyStat').textContent=weighted(l,'MEAN_LOYALTY_SCORE').toFixed(3);
+    $('charlsonStat').textContent=weighted(l,'MEAN_CHARLSON_INDEX').toFixed(2);
+    const categoryPatients={}; p.forEach(r=>{ categoryPatients[r.LOYALTY_GROUP]=(categoryPatients[r.LOYALTY_GROUP]||0)+Number(r.CONDITION_COUNT||0); });
+    const tierDenom={}; p.forEach(r=>tierDenom[r.LOYALTY_GROUP]=Math.max(tierDenom[r.LOYALTY_GROUP]||0,Number(r.PATIENT_COUNT)||0));
+    const denom=Object.values(tierDenom).reduce((a,b)=>a+b,0), occurrences=Object.values(categoryPatients).reduce((a,b)=>a+b,0);
+    $('conditionStat').textContent=denom ? (100*occurrences/denom).toFixed(1) : '—';
+  }
+
+  function renderLandscape(rows) {
+    const c=$('landscapeChart'); c.innerHTML='';
+    const by={}; rows.forEach(r=>{const k=`${r.LOYALTY_DECILE}|${r.CHARLSON_BAND}`; if(!by[k])by[k]={n:0,score:0}; by[k].n+=Number(r.PATIENT_COUNT); by[k].score+=Number(r.MEAN_LOYALTY_SCORE)*Number(r.PATIENT_COUNT);});
+    const W=760,H=350,m={l:72,r:18,t:12,b:54},cw=(W-m.l-m.r)/10,ch=(H-m.t-m.b)/5,max=Math.max(...Object.values(by).map(d=>d.n),1);
+    const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Patient density by loyalty decile and Charlson index band'});
+    bands.slice().reverse().forEach((band,yi)=>{
+      svg.append(svgEl('text',{x:m.l-12,y:m.t+yi*ch+ch/2+4,'text-anchor':'end',class:'axis'},band));
+      for(let d=1;d<=10;d++){
+        const rec=by[`${d}|${band}`], n=rec?.n||0, alpha=n?(.14+.82*Math.sqrt(n/max)):0;
+        const rect=svgEl('rect',{x:m.l+(d-1)*cw+2,y:m.t+yi*ch+2,width:cw-4,height:ch-4,rx:5,fill:n?`rgba(8,126,139,${alpha})`:'#ecece5',class:'cell'});
+        rect.addEventListener('mousemove',e=>showTip(e,`<b>Decile ${d} · Charlson ${band}</b><br>${n.toLocaleString()} represented patients${n?`<br>Mean score ${(rec.score/n).toFixed(3)}`:''}`)); rect.addEventListener('mouseleave',hideTip); svg.append(rect);
+        if(n) svg.append(svgEl('text',{x:m.l+(d-.5)*cw,y:m.t+yi*ch+ch/2+4,'text-anchor':'middle',fill:alpha>.55?'white':'var(--ink)','font-size':'11','pointer-events':'none'},n.toLocaleString()));
+      }
+    });
+    for(let d=1;d<=10;d++) svg.append(svgEl('text',{x:m.l+(d-.5)*cw,y:H-m.b+22,'text-anchor':'middle',class:'axis'},String(d)));
+    svg.append(svgEl('text',{x:(m.l+W-m.r)/2,y:H-8,'text-anchor':'middle',class:'axis-title'},'Loyalty-score decile →'));
+    svg.append(svgEl('text',{x:15,y:(m.t+H-m.b)/2,transform:`rotate(-90 15 ${(m.t+H-m.b)/2})`,'text-anchor':'middle',class:'axis-title'},'Charlson index band'));
+    c.append(svg);
+  }
+
+  function renderFeatures(rows) {
+    const c=$('featureChart'); c.innerHTML=''; const W=760,rowH=22,H=features.length*rowH+72,m={l:205,r:18,t:10,b:45};
+    const grouped={}; rows.forEach(r=>{const d=r.LOYALTY_DECILE; if(!grouped[d])grouped[d]={n:0}; grouped[d].n+=Number(r.PATIENT_COUNT); features.forEach(([k])=>grouped[d][k]=(grouped[d][k]||0)+Number(r[k]||0));});
+    const cw=(W-m.l-m.r)/10, svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Feature prevalence heatmap by loyalty decile'});
+    features.forEach(([key,label],yi)=>{
+      svg.append(svgEl('text',{x:m.l-10,y:m.t+yi*rowH+15,'text-anchor':'end',class:'axis'},label));
+      for(let d=1;d<=10;d++){
+        const g=grouped[d]||{n:0},pct=g.n?100*(g[key]||0)/g.n:0,alpha=.06+.9*pct/100;
+        const rect=svgEl('rect',{x:m.l+(d-1)*cw+1,y:m.t+yi*rowH+1,width:cw-2,height:rowH-2,rx:3,fill:`rgba(230,95,92,${alpha})`,class:'cell'});
+        rect.addEventListener('mousemove',e=>showTip(e,`<b>${escapeHTML(label)}</b><br>Decile ${d}: ${pct.toFixed(1)}%<br>${Math.round(g[key]||0).toLocaleString()} of ${Math.round(g.n).toLocaleString()}`)); rect.addEventListener('mouseleave',hideTip); svg.append(rect);
+      }
+    });
+    for(let d=1;d<=10;d++) svg.append(svgEl('text',{x:m.l+(d-.5)*cw,y:H-m.b+20,'text-anchor':'middle',class:'axis'},String(d)));
+    svg.append(svgEl('text',{x:(m.l+W-m.r)/2,y:H-7,'text-anchor':'middle',class:'axis-title'},'Loyalty-score decile →'));
+    c.append(svg);
+  }
+
+  function renderCharlson(rows) {
+    const c=$('charlsonChart'); c.innerHTML='';
+    const cats=[...new Set(rows.map(r=>r.CHARLSON_CATEGORY))];
+    const agg={}; rows.forEach(r=>{const k=`${r.CHARLSON_CATEGORY}|${r.LOYALTY_GROUP}`; if(!agg[k])agg[k]={n:0,c:0}; agg[k].n+=Number(r.PATIENT_COUNT); agg[k].c+=Number(r.CONDITION_COUNT);});
+    cats.sort((a,b)=>{const pa=tiers.reduce((s,t)=>s+(agg[`${a}|${t}`]?.c||0),0),pb=tiers.reduce((s,t)=>s+(agg[`${b}|${t}`]?.c||0),0);return pb-pa;});
+    const values=Object.values(agg).map(d=>d.n?100*d.c/d.n:0),max=Math.max(5,...values),W=520,rowH=29,H=cats.length*rowH+68,m={l:238,r:20,t:10,b:42},plotW=W-m.l-m.r;
+    const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Charlson condition prevalence by loyalty group'});
+    [0,.25,.5,.75,1].forEach(f=>{const x=m.l+f*plotW;svg.append(svgEl('line',{x1:x,x2:x,y1:m.t,y2:H-m.b,class:'grid-line'}));svg.append(svgEl('text',{x,y:H-m.b+18,'text-anchor':'middle',class:'axis'},(f*max).toFixed(0)+'%'));});
+    cats.forEach((cat,i)=>{
+      const y=m.t+i*rowH+rowH/2; svg.append(svgEl('text',{x:m.l-9,y:y+4,'text-anchor':'end',class:'axis'},cat));
+      const pts=tiers.map(t=>{const d=agg[`${cat}|${t}`]||{n:0,c:0},p=d.n?100*d.c/d.n:0;return{t,p,d,x:m.l+p/max*plotW};});
+      svg.append(svgEl('line',{x1:Math.min(...pts.map(p=>p.x)),x2:Math.max(...pts.map(p=>p.x)),y1:y,y2:y,stroke:'var(--line)','stroke-width':'2'}));
+      pts.forEach(p=>{const dot=svgEl('circle',{cx:p.x,cy:y,r:5.5,fill:tierColors[p.t],class:'cell'});dot.addEventListener('mousemove',e=>showTip(e,`<b>${escapeHTML(cat)}</b><br>${p.t} loyalty: ${p.p.toFixed(1)}%<br>${p.d.c.toLocaleString()} of ${p.d.n.toLocaleString()}`));dot.addEventListener('mouseleave',hideTip);svg.append(dot);});
+    });
+    svg.append(svgEl('text',{x:(m.l+W-m.r)/2,y:H-5,'text-anchor':'middle',class:'axis-title'},'Condition prevalence'));
+    c.append(svg);
+  }
+
+  function sampleData() {
+    landscape=[]; profile=[];
+    for(let d=1;d<=10;d++) for(const [bi,b] of bands.entries()){
+      const n=Math.round(25+150*Math.exp(-Math.pow((bi-(d/4.2)),2)/2.4));
+      const r={SITE:'DEMO',COHORT_NAME:'Example cohort',LOOKBACK_YEARS:5,GENDER_DENOMINATORS_YN:'N',AGE_GRP:'All',SEX:'All',LOYALTY_DECILE:d,CHARLSON_BAND:b,PATIENT_COUNT:n,MEAN_LOYALTY_SCORE:-.8+d*.17,MEAN_CHARLSON_INDEX:bi*.9,MEAN_CHARLSON_10YR_PROB:80-bi*8};
+      features.forEach(([k],i)=>r[k]=Math.round(n*Math.min(.95,.08+d*.065+(i%4)*.025))); landscape.push(r);
+    }
+    const names=['Congestive heart failure','Chronic pulmonary disease','Diabetes without complications','Renal disease','Cancer','Cerebrovascular disease','Dementia','Myocardial infarction','Peripheral vascular disease','Metastatic cancer'];
+    names.forEach((cat,i)=>tiers.forEach((t,ti)=>profile.push({SITE:'DEMO',COHORT_NAME:'Example cohort',LOOKBACK_YEARS:5,GENDER_DENOMINATORS_YN:'N',AGE_GRP:'All',SEX:'All',LOYALTY_GROUP:t,CHARLSON_CATEGORY:cat,PATIENT_COUNT:2000,CONDITION_COUNT:Math.round(2000*Math.max(.004,.16-i*.013+ti*.018))})));
+    $('landscapeName').textContent='sample data'; $('profileName').textContent='sample data'; initialize();
+  }
+
+  $('landscapeFile').addEventListener('change',e=>loadFile(e.target,'landscape'));
+  $('profileFile').addEventListener('change',e=>loadFile(e.target,'profile'));
+  $('demoButton').addEventListener('click',sampleData);
+  $('printButton').addEventListener('click',()=>window.print());
+})();
+</script>
+</body>
+</html>
