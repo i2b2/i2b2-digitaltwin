@@ -23,11 +23,40 @@ The supported installation order is:
 
 The shared ACT-OMOP `PATIENT_DIMENSION` view is not modified. `TABLE_ACCESS`, `CONCEPT_DIMENSION`, and the OMOP `CONCEPT` vocabulary may be local tables, views, or synonyms. The loyalty procedure normalizes OMOP gender concept IDs itself. ACT-OMOP currently supplies a null `DEATH_DATE`, so loyalty `DEATH_DT` remains null until death mapping is implemented separately.
 
+#### How one procedure supports both i2b2 and ACT-OMOP
+
+The core loyalty feature and scoring logic is shared between the two database
+models. A small compatibility layer adapts their different fact and metadata
+representations:
+
+- A conventional i2b2 installation continues to use its physical
+  `OBSERVATION_FACT` table. On ACT-OMOP, the prep script creates a minimal
+  three-column compatibility view over the standard and nonstandard condition,
+  drug, device, measurement, observation, and procedure views. A real i2b2 fact
+  table is never replaced.
+- At runtime, the procedure creates a private unified concept map. It reads a
+  conventional `CONCEPT_DIMENSION`, the split ACT-OMOP ontology tables
+  registered in `TABLE_ACCESS`, or both. Merging both sources is important for
+  hybrid installations whose unified concept dimension omits ACT visit codes.
+- Tables, views, synonyms, and qualified ontology object names are supported,
+  allowing compatibility objects to point to another schema or database.
+- Patient sex values are normalized across conventional i2b2 codes and OMOP
+  concept IDs (`8532` for female and `8507` for male). Visit codes are converted
+  to a common string form and trimmed before comparison.
+- Conventional i2b2 Charlson mappings match vocabulary-prefixed ICD codes
+  directly. ACT-OMOP mappings match the ICD pattern stored in
+  `I2B2_ACT_BASECODE`, then translate it to both `OMOP_S_CONCEPT_ID` and
+  `OMOP_NS_CONCEPT_ID` so standard and source condition facts are recognized.
+
+After these adaptations, both installations use the same patient-inclusion,
+feature calculation, loyalty scoring, Charlson calculation, and result-writing
+logic. The shared i2b2-OMOP views themselves are not modified.
+
 The `scripts/visualization` directory contains privacy-conscious aggregate SQL
 extracts and a standalone Loyalty × Health Burden Atlas for exploring
 `DT_LOYALTY_RESULT` together with `DT_LOYALTY_RESULT_CHARLSON`.
 
-See the [SQL Server loyalty cohort README](Release_1-8/NewInstall/Crcdata/scripts/procedures/sqlserver/README.md)
+See the [SQL Server loyalty cohort README](LOYALTY_README.md)
 for the procedure inputs, patient-inclusion rules, feature definitions, scoring,
 Charlson calculation, outputs, and troubleshooting guidance.
 
