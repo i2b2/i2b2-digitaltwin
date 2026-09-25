@@ -23,6 +23,14 @@ The supported installation order is:
 
 The shared ACT-OMOP `PATIENT_DIMENSION` view is not modified. `TABLE_ACCESS`, `CONCEPT_DIMENSION`, and the OMOP `CONCEPT` vocabulary may be local tables, views, or synonyms. The loyalty procedure normalizes OMOP gender concept IDs itself. ACT-OMOP currently supplies a null `DEATH_DATE`, so loyalty `DEATH_DT` remains null until death mapping is implemented separately.
 
+The `scripts/visualization` directory contains privacy-conscious aggregate SQL
+extracts and a standalone Loyalty × Health Burden Atlas for exploring
+`DT_LOYALTY_RESULT` together with `DT_LOYALTY_RESULT_CHARLSON`.
+
+See the [SQL Server loyalty cohort README](Release_1-8/NewInstall/Crcdata/scripts/procedures/sqlserver/README.md)
+for the procedure inputs, patient-inclusion rules, feature definitions, scoring,
+Charlson calculation, outputs, and troubleshooting guidance.
+
 
 ## Reporting Issues
 If an issue is found with the i2b2 digital twin scripts please submit an issue in the [i2b2 Bug Tracker](http://community.i2b2.org/jira/secure/Dashboard.jspa "i2b2 Bug Tracker") under the *i2b2 Core Software* project.
