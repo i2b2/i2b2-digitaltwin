@@ -1,0 +1,90 @@
+-- ********************************************************
+-- * Oracle preparation for running the loyalty cohort
+-- * against an ACT-OMOP database.
+-- *
+-- * The numeric prefix makes the procedure installer run this script before
+-- * usp_dt_loyaltycohort.sql. Conventional i2b2 installations with an existing
+-- * OBSERVATION_FACT table, view, or synonym are left unchanged.
+-- ********************************************************
+
+DECLARE
+    V_MISSING VARCHAR2(4000);
+
+    FUNCTION QUERYABLE(P_OBJECT_NAME VARCHAR2) RETURN BOOLEAN IS
+        V_SQL VARCHAR2(1000);
+        V_N NUMBER;
+    BEGIN
+        V_SQL := 'SELECT COUNT(*) FROM ' || DBMS_ASSERT.SQL_OBJECT_NAME(P_OBJECT_NAME) || ' WHERE 1=0';
+        EXECUTE IMMEDIATE V_SQL INTO V_N;
+        RETURN TRUE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN FALSE;
+    END;
+
+    PROCEDURE REQUIRE_OBJECT(P_OBJECT_NAME VARCHAR2) IS
+    BEGIN
+        IF NOT QUERYABLE(P_OBJECT_NAME) THEN
+            IF V_MISSING IS NULL THEN
+                V_MISSING := P_OBJECT_NAME;
+            ELSE
+                V_MISSING := V_MISSING || ', ' || P_OBJECT_NAME;
+            END IF;
+        END IF;
+    END;
+BEGIN
+    -- An existing queryable fact object may be a conventional table, a view,
+    -- or a synonym supplied by the site. Never replace it.
+    IF QUERYABLE('OBSERVATION_FACT') THEN
+        DBMS_OUTPUT.PUT_LINE('OBSERVATION_FACT already exists and is queryable; skipping the ACT-OMOP compatibility view.');
+    ELSE
+        REQUIRE_OBJECT('CONDITION_VIEW');
+        REQUIRE_OBJECT('CONDITION_NS_VIEW');
+        REQUIRE_OBJECT('DRUG_VIEW');
+        REQUIRE_OBJECT('DRUG_NS_VIEW');
+        REQUIRE_OBJECT('DEVICE_VIEW');
+        REQUIRE_OBJECT('DEVICE_NS_VIEW');
+        REQUIRE_OBJECT('MEASUREMENT_VIEW');
+        REQUIRE_OBJECT('MEASUREMENT_NS_VIEW');
+        REQUIRE_OBJECT('OBSERVATION_VIEW');
+        REQUIRE_OBJECT('OBSERVATION_NS_VIEW');
+        REQUIRE_OBJECT('PROCEDURE_VIEW');
+        REQUIRE_OBJECT('PROCEDURE_NS_VIEW');
+
+        IF V_MISSING IS NOT NULL THEN
+            RAISE_APPLICATION_ERROR(-20001,
+                'Cannot create OBSERVATION_FACT. Missing or inaccessible ACT-OMOP views or synonyms: ' || V_MISSING);
+        END IF;
+
+        EXECUTE IMMEDIATE q'~
+            CREATE OR REPLACE VIEW OBSERVATION_FACT
+                (PATIENT_NUM, CONCEPT_CD, START_DATE) AS
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM CONDITION_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM CONDITION_NS_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM DRUG_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM DRUG_NS_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM DEVICE_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM DEVICE_NS_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM MEASUREMENT_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM MEASUREMENT_NS_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM OBSERVATION_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM OBSERVATION_NS_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM PROCEDURE_VIEW
+            UNION ALL
+            SELECT CAST(PATIENT_NUM AS NUMBER(38)), CAST(CONCEPT_CD AS VARCHAR2(50)), CAST(START_DATE AS DATE) FROM PROCEDURE_NS_VIEW
+        ~';
+
+        DBMS_OUTPUT.PUT_LINE('Created OBSERVATION_FACT compatibility view for the ACT-OMOP loyalty cohort.');
+        DBMS_OUTPUT.PUT_LINE('NOTICE: ACT-OMOP PATIENT_DIMENSION currently returns NULL DEATH_DATE; loyalty DEATH_DT will remain null until death mapping is implemented.');
+    END IF;
+END;

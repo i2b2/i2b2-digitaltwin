@@ -164,6 +164,19 @@ CREATE TABLE DT_TMP_DEMCONCEPT (
     "CONCEPT_PREFIX" VARCHAR(50)
 );
 
+-- Unified concept map used by the loyalty procedure. Conventional i2b2 loads
+-- this from CONCEPT_DIMENSION; ACT-OMOP also loads the ontology tables
+-- registered in TABLE_ACCESS. Like the other DT_TMP tables in this Oracle
+-- implementation, this is shared working storage and procedure executions must
+-- be serialized.
+CREATE TABLE DT_TMP_LOY_CONCEPT (
+    "CONCEPT_PATH" VARCHAR2(700) NOT NULL,
+    "CONCEPT_CD" VARCHAR2(50) NOT NULL
+);
+
+CREATE INDEX IDX_DT_TMP_LOY_CONCEPT
+    ON DT_TMP_LOY_CONCEPT (CONCEPT_PATH, CONCEPT_CD);
+
 CREATE TABLE DT_TMP_COHORT (
     "COHORT_NAME" VARCHAR(100) NOT NULL,
     "PATIENT_NUM" INT NOT NULL,

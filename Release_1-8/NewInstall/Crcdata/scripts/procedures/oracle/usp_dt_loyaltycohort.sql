@@ -58,6 +58,30 @@ AS
     V_STEPRUNTIME_MS INT;
     V_ROWS INT;
     V_RESULT SYS_REFCURSOR;
+    V_ONTOLOGY_CURSOR SYS_REFCURSOR;
+    V_ONTOLOGY_TABLE VARCHAR2(400);
+    V_ONTOLOGY_OBJECT VARCHAR2(500);
+    V_ONTOLOGY_SQL VARCHAR2(32767);
+    V_HAS_CONCEPT_DIM NUMBER := 0;
+    V_HAS_TABLE_ACCESS NUMBER := 0;
+    V_ONTOLOGY_TABLE_COUNT NUMBER := 0;
+    V_UNMATCHED_PATHS NUMBER := 0;
+    V_CHARLSON_CODE_COUNT NUMBER := 0;
+    V_CHARLSON_CATEGORY_COUNT NUMBER := 0;
+    V_CHARLSON_PATTERN_COUNT NUMBER := 0;
+    V_CHARLSON_FLAG_PATIENTS NUMBER := 0;
+    V_INP1_OPT1_PATIENTS NUMBER := 0;
+    V_OPT2_PATIENTS NUMBER := 0;
+    V_ED_PATIENTS NUMBER := 0;
+
+    PROCEDURE CLOSE_CURSOR_IF_OPEN(P_CURSOR IN OUT SYS_REFCURSOR) IS
+    BEGIN
+        IF P_CURSOR%ISOPEN THEN
+            CLOSE P_CURSOR;
+        END IF;
+    EXCEPTION
+        WHEN INVALID_CURSOR THEN NULL;
+    END;
 BEGIN
     -- CHECK ANY CUSTOM LOCAL CODES ADDED TO DT_LOYALTY_PATHS AT <PE.1> AND <PE.2> - PLEASE SEE COMMENTS
 
@@ -65,6 +89,7 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_AGE_GRP_PSC';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_COHORT_FILTER';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_DEMCONCEPT';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_LOY_CONCEPT';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_INCLPAT';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_COHORT';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_COHORT_FLAGS_PSC';
@@ -73,6 +98,115 @@ BEGIN
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_CHARLSON_DX';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_COHORT_CHARLSON';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE DT_TMP_CHARLSON_STATS';
+
+    -- Build a private unified concept map. Conventional i2b2 exposes one
+    -- CONCEPT_DIMENSION, while ACT-OMOP distributes metadata across the active
+    -- ontology tables registered in TABLE_ACCESS. Both are loaded when present.
+    BEGIN
+        EXECUTE IMMEDIATE q'~
+            INSERT INTO DT_TMP_LOY_CONCEPT (CONCEPT_PATH, CONCEPT_CD)
+            SELECT DISTINCT CAST(CONCEPT_PATH AS VARCHAR2(700)), CAST(CONCEPT_CD AS VARCHAR2(50))
+            FROM CONCEPT_DIMENSION
+            WHERE CONCEPT_PATH IS NOT NULL AND CONCEPT_CD IS NOT NULL
+        ~';
+        V_HAS_CONCEPT_DIM := 1;
+    EXCEPTION
+        WHEN OTHERS THEN
+            IF SQLCODE != -942 THEN
+                RAISE_APPLICATION_ERROR(-20002,
+                    'Unable to read CONCEPT_DIMENSION: ' || SQLERRM);
+            END IF;
+    END;
+
+    BEGIN
+        OPEN V_ONTOLOGY_CURSOR FOR
+            'SELECT DISTINCT C_TABLE_NAME FROM TABLE_ACCESS ' ||
+            'WHERE C_TABLE_NAME IS NOT NULL AND C_VISUALATTRIBUTES LIKE ''%A%''';
+        V_HAS_TABLE_ACCESS := 1;
+
+        LOOP
+            FETCH V_ONTOLOGY_CURSOR INTO V_ONTOLOGY_TABLE;
+            EXIT WHEN V_ONTOLOGY_CURSOR%NOTFOUND;
+
+            IF INSTR(V_ONTOLOGY_TABLE, '@') > 0 THEN
+                RAISE_APPLICATION_ERROR(-20003,
+                    'Database-link ontology objects are not supported: ' || V_ONTOLOGY_TABLE);
+            END IF;
+
+            BEGIN
+                V_ONTOLOGY_OBJECT := DBMS_ASSERT.SQL_OBJECT_NAME(V_ONTOLOGY_TABLE);
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE_APPLICATION_ERROR(-20004,
+                        'TABLE_ACCESS contains an invalid or inaccessible C_TABLE_NAME: ' || V_ONTOLOGY_TABLE);
+            END;
+
+            V_ONTOLOGY_SQL :=
+                'INSERT INTO DT_TMP_LOY_CONCEPT (CONCEPT_PATH, CONCEPT_CD) ' ||
+                'SELECT DISTINCT CAST(C_FULLNAME AS VARCHAR2(700)), CAST(C_BASECODE AS VARCHAR2(50)) ' ||
+                'FROM ' || V_ONTOLOGY_OBJECT || ' O ' ||
+                'WHERE O.C_FULLNAME IS NOT NULL AND O.C_BASECODE IS NOT NULL AND (' ||
+                'O.C_FULLNAME LIKE ''\ACT\Demographics%'' OR ' ||
+                'O.C_FULLNAME LIKE ''\ACT\Diagnosis\ICD10%'' OR ' ||
+                'O.C_FULLNAME LIKE ''\ACT\Diagnosis\ICD9%'' OR ' ||
+                'EXISTS (SELECT 1 FROM DT_LOYALTY_PATHS L ' ||
+                'WHERE L.CONCEPT_PATH IS NOT NULL AND L.CONCEPT_PATH <> ''**Not Found'' ' ||
+                'AND O.C_FULLNAME LIKE L.CONCEPT_PATH || ''%''))';
+
+            BEGIN
+                EXECUTE IMMEDIATE V_ONTOLOGY_SQL;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    CLOSE_CURSOR_IF_OPEN(V_ONTOLOGY_CURSOR);
+                    RAISE_APPLICATION_ERROR(-20005,
+                        'Unable to read ontology table ' || V_ONTOLOGY_TABLE || ': ' || SQLERRM);
+            END;
+
+            V_ONTOLOGY_TABLE_COUNT := V_ONTOLOGY_TABLE_COUNT + 1;
+        END LOOP;
+        CLOSE V_ONTOLOGY_CURSOR;
+    EXCEPTION
+        WHEN OTHERS THEN
+            CLOSE_CURSOR_IF_OPEN(V_ONTOLOGY_CURSOR);
+            IF SQLCODE = -942 THEN
+                V_HAS_TABLE_ACCESS := 0;
+            ELSE
+                RAISE;
+            END IF;
+    END;
+
+    IF V_HAS_CONCEPT_DIM = 0 AND V_HAS_TABLE_ACCESS = 0 THEN
+        RAISE_APPLICATION_ERROR(-20006,
+            'Loyalty cohort requires CONCEPT_DIMENSION or ACT-OMOP TABLE_ACCESS metadata.');
+    END IF;
+
+    SELECT COUNT(*) INTO V_ROWS
+    FROM DT_LOYALTY_PATHS L
+    WHERE L.CONCEPT_PATH IS NOT NULL
+      AND L.CONCEPT_PATH <> '**Not Found'
+      AND EXISTS (
+          SELECT 1 FROM DT_TMP_LOY_CONCEPT C
+          WHERE C.CONCEPT_PATH LIKE L.CONCEPT_PATH || '%'
+      );
+
+    IF V_ROWS = 0 THEN
+        RAISE_APPLICATION_ERROR(-20007,
+            'No DT_LOYALTY_PATHS entries matched the installed ontology. Check TABLE_ACCESS and the installed ACT ontology version.');
+    END IF;
+
+    SELECT COUNT(*) INTO V_UNMATCHED_PATHS
+    FROM DT_LOYALTY_PATHS L
+    WHERE L.CONCEPT_PATH IS NOT NULL
+      AND L.CONCEPT_PATH <> '**Not Found'
+      AND NOT EXISTS (
+          SELECT 1 FROM DT_TMP_LOY_CONCEPT C
+          WHERE C.CONCEPT_PATH LIKE L.CONCEPT_PATH || '%'
+      );
+
+    IF V_UNMATCHED_PATHS > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Warning: ' || TO_CHAR(V_UNMATCHED_PATHS) ||
+            ' DT_LOYALTY_PATHS rows did not match the installed ontology. Run the Oracle OMOP validation script for details.');
+    END IF;
 
     -- CONVERT UDT TABLE VARIABLE PARAMETER TO TEMP TABLE AND CREATE INDEXES
     BEGIN EXECUTE IMMEDIATE 'DROP INDEX IDX_DT_TMP_COHORT_FILTER'; EXCEPTION WHEN OTHERS THEN NULL; END;
@@ -97,7 +231,7 @@ BEGIN
         -- EXTRACT DEMOGRAPHIC CONCEPTS
         INSERT INTO DT_TMP_DEMCONCEPT
         SELECT DISTINCT CONCEPT_CD, SUBSTR(CONCEPT_CD,1, INSTR(CONCEPT_CD, ':')-1) AS CONCEPT_PREFIX
-        FROM CONCEPT_DIMENSION
+        FROM DT_TMP_LOY_CONCEPT
         WHERE CONCEPT_PATH LIKE '\ACT\Demographics%' and nvl(concept_cd, '') is not null;
 
         INSERT INTO DT_TMP_INCLPAT (PATIENT_NUM)
@@ -154,8 +288,8 @@ BEGIN
 
     INSERT INTO DT_TMP_COHORT (COHORT_NAME, PATIENT_NUM, AGE, SEX, INP1_OPT1_VISIT, OPT2_VISIT, ED_VISIT, LAST_VISIT, INDEX_DT)
     SELECT COHORT_NAME, C.PATIENT_NUM,
-        TRUNC(NVL(((INDEX_DT-TRUNC(P.BIRTH_DATE))/365.25), 0)) AGE,
-        REPLACE(P.SEX_CD,'DEM|SEX:','') SEX,
+        TRUNC((INDEX_DT-TRUNC(P.BIRTH_DATE))/365.25) AGE,
+        P.SEX,
         MAX(INP1_OPT1_VISIT) AS INP1_OPT1_VISIT, MAX(OPT2_VISIT) OPT2_VISIT, MAX(ED_VISIT) ED_VISIT, MAX(LAST_VISIT) LAST_VISIT, INDEX_DT
     FROM (
             -- 1 INPATIENT OR 1 OUTPATIENT VISIT DURING THE MEASURED LOOKBACK PERIOD
@@ -166,14 +300,14 @@ BEGIN
                 INNER JOIN VISIT_DIMENSION V
                     ON P.PATIENT_NUM = V.PATIENT_NUM
                         AND V.START_DATE >= add_months(cf.index_dt, -12 * p_lookback_years) AND V.START_DATE < cf.index_dt + 1 -- ALTERED OCT2022 - BASE NON-DEMOGRAPHIC FACT LOOKUP ON MEASURE PERIOD
-                        AND V.INOUT_CD IN (
-                            SELECT VD.C_BASECODE
-                            FROM ACT_VISIT_DETAILS_V41 VD
+                        AND TRIM(TO_CHAR(V.INOUT_CD)) IN (
+                            SELECT TRIM(VD.CONCEPT_CD)
+                            FROM DT_TMP_LOY_CONCEPT VD
                                 INNER JOIN DT_LOYALTY_PATHS LCP
-                                    ON VD.C_FULLNAME LIKE CONCAT(LCP.CONCEPT_PATH,'%')
+                                    ON VD.CONCEPT_PATH LIKE LCP.CONCEPT_PATH || '%'
                                         AND LCP.FEATURE_NAME = 'INP1_OPT1_VISIT'
                             UNION
-                            SELECT SITE_SPECIFIC_CODE
+                            SELECT TRIM(SITE_SPECIFIC_CODE)
                             FROM DT_LOYALTY_PATHS
                             WHERE FEATURE_NAME = 'INP1_OPT1_VISIT'
                                 AND CODE_TYPE = 'SITE'
@@ -186,12 +320,12 @@ BEGIN
                 INNER JOIN DT_TMP_COHORT_FILTER CF ON P.PATIENT_NUM = CF.PATIENT_NUM
                 INNER JOIN VISIT_DIMENSION V ON P.PATIENT_NUM = V.PATIENT_NUM
                     AND V.START_DATE >= add_months(cf.index_dt, -12 * p_lookback_years) AND V.START_DATE < cf.index_dt + 1 -- ALTERED OCT2022 - BASE NON-DEMOGRAPHIC FACT LOOKUP ON MEASURE PERIOD
-                    AND V.INOUT_CD IN (
-                        SELECT VD.C_BASECODE
-                        FROM ACT_VISIT_DETAILS_V41 VD
-                            INNER JOIN DT_LOYALTY_PATHS LCP ON VD.C_FULLNAME LIKE CONCAT(LCP.CONCEPT_PATH,'%') AND LCP.FEATURE_NAME = 'OPT2_VISIT'
+                    AND TRIM(TO_CHAR(V.INOUT_CD)) IN (
+                        SELECT TRIM(VD.CONCEPT_CD)
+                        FROM DT_TMP_LOY_CONCEPT VD
+                            INNER JOIN DT_LOYALTY_PATHS LCP ON VD.CONCEPT_PATH LIKE LCP.CONCEPT_PATH || '%' AND LCP.FEATURE_NAME = 'OPT2_VISIT'
                         UNION
-                        SELECT SITE_SPECIFIC_CODE
+                        SELECT TRIM(SITE_SPECIFIC_CODE)
                         FROM DT_LOYALTY_PATHS
                         WHERE FEATURE_NAME = 'OPT2_VISIT' AND CODE_TYPE = 'SITE' AND nvl(SITE_SPECIFIC_CODE, '') is not null)
             GROUP BY CF.COHORT_NAME, P.PATIENT_NUM, CF.INDEX_DT
@@ -203,12 +337,12 @@ BEGIN
                 INNER JOIN DT_TMP_COHORT_FILTER CF ON P.PATIENT_NUM = CF.PATIENT_NUM
                 INNER JOIN VISIT_DIMENSION V ON P.PATIENT_NUM = V.PATIENT_NUM
                     AND V.START_DATE >= add_months(cf.index_dt, -12 * p_lookback_years) AND V.START_DATE < cf.index_dt + 1 -- ALTERED OCT2022 - BASE NON-DEMOGRAPHIC FACT LOOKUP ON MEASURE PERIOD
-                    AND V.INOUT_CD IN (
-                        SELECT VD.C_BASECODE
-                        FROM ACT_VISIT_DETAILS_V41 VD
-                            INNER JOIN DT_LOYALTY_PATHS LCP ON VD.C_FULLNAME LIKE CONCAT(LCP.CONCEPT_PATH,'%') AND LCP.FEATURE_NAME = 'ED_VISIT'
+                    AND TRIM(TO_CHAR(V.INOUT_CD)) IN (
+                        SELECT TRIM(VD.CONCEPT_CD)
+                        FROM DT_TMP_LOY_CONCEPT VD
+                            INNER JOIN DT_LOYALTY_PATHS LCP ON VD.CONCEPT_PATH LIKE LCP.CONCEPT_PATH || '%' AND LCP.FEATURE_NAME = 'ED_VISIT'
                             UNION
-                            SELECT SITE_SPECIFIC_CODE
+                            SELECT TRIM(SITE_SPECIFIC_CODE)
                             FROM DT_LOYALTY_PATHS
                             WHERE FEATURE_NAME = 'ED_VISIT' AND CODE_TYPE = 'SITE' AND nvl(SITE_SPECIFIC_CODE,'') is not null)
             GROUP BY CF.COHORT_NAME, P.PATIENT_NUM, CF.INDEX_DT
@@ -221,9 +355,30 @@ BEGIN
                     AND V.START_DATE >= add_months(cf.index_dt, -12 * p_lookback_years) AND V.START_DATE < cf.index_dt + 1 -- ALTERED OCT2022 - BASE NON-DEMOGRAPHIC FACT LOOKUP ON MEASURE PERIOD
             GROUP BY CF.COHORT_NAME, P.PATIENT_NUM, CF.INDEX_DT
         ) C
-        INNER JOIN PATIENT_DIMENSION P ON C.PATIENT_NUM = P.PATIENT_NUM
-    GROUP BY COHORT_NAME, C.PATIENT_NUM, REPLACE(P.SEX_CD,'DEM|SEX:',''), TRUNC(NVL(((INDEX_DT-TRUNC(P.BIRTH_DATE))/365.25), 0)), INDEX_DT;
+        INNER JOIN (
+            SELECT PATIENT_NUM, BIRTH_DATE,
+                CASE UPPER(TRIM(TO_CHAR(SEX_CD)))
+                    WHEN 'DEM|SEX:F' THEN 'F'
+                    WHEN 'F' THEN 'F'
+                    WHEN '8532' THEN 'F'
+                    WHEN 'DEM|SEX:M' THEN 'M'
+                    WHEN 'M' THEN 'M'
+                    WHEN '8507' THEN 'M'
+                    ELSE REPLACE(UPPER(TRIM(TO_CHAR(SEX_CD))), 'DEM|SEX:', '')
+                END AS SEX
+            FROM PATIENT_DIMENSION
+        ) P ON C.PATIENT_NUM = P.PATIENT_NUM
+    GROUP BY COHORT_NAME, C.PATIENT_NUM, P.SEX,
+        TRUNC((INDEX_DT-TRUNC(P.BIRTH_DATE))/365.25), INDEX_DT;
     V_ROWS := SQL%ROWCOUNT;
+
+    SELECT NVL(SUM(INP1_OPT1_VISIT), 0), NVL(SUM(OPT2_VISIT), 0), NVL(SUM(ED_VISIT), 0)
+    INTO V_INP1_OPT1_PATIENTS, V_OPT2_PATIENTS, V_ED_PATIENTS
+    FROM DT_TMP_COHORT;
+
+    DBMS_OUTPUT.PUT_LINE('Visit flag checkpoint - INP1_OPT1 patients=' ||
+        TO_CHAR(V_INP1_OPT1_PATIENTS) || ', OPT2 patients=' ||
+        TO_CHAR(V_OPT2_PATIENTS) || ', ED patients=' || TO_CHAR(V_ED_PATIENTS));
 
     -- FINISH COHORT VISIT TYPE PREP
     V_ENDRUNTIME_MS := EXTRACT (DAY FROM (LOCALTIMESTAMP - V_START_TS))*24*60*60 +
@@ -259,7 +414,7 @@ BEGIN
     WITH
         CTE_PARAMS AS (
             SELECT DISTINCT FEATURE_NAME, CONCEPT_CD, CODE_TYPE --[CONCEPT_PATH],
-            FROM DT_LOYALTY_PATHS L, CONCEPT_DIMENSION C
+            FROM DT_LOYALTY_PATHS L, DT_TMP_LOY_CONCEPT C
             WHERE C.CONCEPT_PATH LIKE L.CONCEPT_PATH|| '%'  --JGK: MUST SUPPORT LOCAL CHILDREN
             AND CODE_TYPE IN ('DX','PX','LAB','MEDS','SITE') -- <PE.1> IF YOUR SITE IS MANAGING ANY SITE SPECIFIC CODES FOR THE FOLLOWING DOMAINS SET THEIR CODE_TYPE = 'SITE' IN DT_LOYALTY_PATHS </PE.1>
             AND (L.CONCEPT_PATH <> '**Not Found' AND L.CONCEPT_PATH IS NOT NULL)
@@ -506,19 +661,91 @@ BEGIN
 
     V_STEP_TS := LOCALTIMESTAMP;
 
-    INSERT INTO DT_TMP_CHARLSON_DX
-    SELECT DISTINCT CHARLSON_CATGRY, CHARLSON_WT, C_BASECODE AS CONCEPT_CD
-    FROM (
-            SELECT C.CHARLSON_CATGRY, C.CHARLSON_WT, DX10.C_BASECODE
-            FROM DT_LOYALTY_CHARLSON C
-                INNER JOIN ACT_ICD10CM_DX_V41 DX10 ON DX10.C_BASECODE LIKE C.DIAGPATTERN
-                    AND DX10.C_BASECODE NOT LIKE '%-%' -- FILTER OUT RANGE CONCEPT CODES FROM ONTOLOGY IE ICD10CM:I70-I79.99
-            UNION ALL
-            SELECT C.CHARLSON_CATGRY, C.CHARLSON_WT, DX9.C_BASECODE
-            FROM DT_LOYALTY_CHARLSON C
-                INNER JOIN ACT_ICD9CM_DX_V4 DX9 ON DX9.C_BASECODE LIKE C.DIAGPATTERN
-                    AND DX9.C_BASECODE NOT LIKE '%-%' -- FILTER OUT RANGE CONCEPT CODES FROM ONTOLOGY
-        ) C;
+    -- ACT-OMOP stores the ICD string in I2B2_ACT_BASECODE and the fact-facing
+    -- standard/source IDs in OMOP_S_CONCEPT_ID and OMOP_NS_CONCEPT_ID.
+    -- Discover the registered diagnosis tables dynamically so synonyms and
+    -- schema-qualified local objects work without requiring an OMOP CONCEPT
+    -- table in the procedure schema.
+    V_ONTOLOGY_TABLE_COUNT := 0;
+
+    IF V_HAS_TABLE_ACCESS = 1 THEN
+        BEGIN
+            OPEN V_ONTOLOGY_CURSOR FOR
+                'SELECT DISTINCT C_TABLE_NAME FROM TABLE_ACCESS ' ||
+                'WHERE C_TABLE_NAME IS NOT NULL AND C_VISUALATTRIBUTES LIKE ''%A%'' ' ||
+                'AND (C_FULLNAME LIKE ''\ACT\Diagnosis\ICD10%'' ' ||
+                'OR C_FULLNAME LIKE ''\ACT\Diagnosis\ICD9%'')';
+
+            LOOP
+                FETCH V_ONTOLOGY_CURSOR INTO V_ONTOLOGY_TABLE;
+                EXIT WHEN V_ONTOLOGY_CURSOR%NOTFOUND;
+
+                V_ONTOLOGY_OBJECT := DBMS_ASSERT.SQL_OBJECT_NAME(V_ONTOLOGY_TABLE);
+                V_ONTOLOGY_TABLE_COUNT := V_ONTOLOGY_TABLE_COUNT + 1;
+
+                V_ONTOLOGY_SQL :=
+                    'INSERT INTO DT_TMP_CHARLSON_DX (CHARLSON_CATGRY, CHARLSON_WT, CONCEPT_CD) ' ||
+                    'SELECT DISTINCT C.CHARLSON_CATGRY, C.CHARLSON_WT, X.CONCEPT_CD ' ||
+                    'FROM DT_LOYALTY_CHARLSON C JOIN (' ||
+                    'SELECT CAST(I2B2_ACT_BASECODE AS VARCHAR2(100)) ACT_CODE, ' ||
+                    'CAST(OMOP_S_CONCEPT_ID AS VARCHAR2(50)) CONCEPT_CD FROM ' || V_ONTOLOGY_OBJECT ||
+                    ' UNION ALL SELECT CAST(I2B2_ACT_BASECODE AS VARCHAR2(100)), ' ||
+                    'CAST(OMOP_NS_CONCEPT_ID AS VARCHAR2(50)) FROM ' || V_ONTOLOGY_OBJECT ||
+                    ') X ON X.ACT_CODE LIKE C.DIAGPATTERN ' ||
+                    'WHERE X.CONCEPT_CD IS NOT NULL AND X.ACT_CODE NOT LIKE ''%-%''';
+
+                BEGIN
+                    EXECUTE IMMEDIATE V_ONTOLOGY_SQL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        -- A conventional i2b2 ontology table has no OMOP mapping
+                        -- columns; allow the classic fallback below in that case.
+                        IF SQLCODE != -904 THEN
+                            CLOSE_CURSOR_IF_OPEN(V_ONTOLOGY_CURSOR);
+                            RAISE_APPLICATION_ERROR(-20008,
+                                'Unable to build Charlson mappings from ' ||
+                                V_ONTOLOGY_TABLE || ': ' || SQLERRM);
+                        END IF;
+                END;
+            END LOOP;
+            CLOSE V_ONTOLOGY_CURSOR;
+        EXCEPTION
+            WHEN OTHERS THEN
+                CLOSE_CURSOR_IF_OPEN(V_ONTOLOGY_CURSOR);
+                RAISE;
+        END;
+    END IF;
+
+    SELECT COUNT(*) INTO V_CHARLSON_CODE_COUNT FROM DT_TMP_CHARLSON_DX;
+
+    IF V_CHARLSON_CODE_COUNT = 0 THEN
+        -- Conventional i2b2 stores vocabulary-prefixed ICD codes directly.
+        INSERT INTO DT_TMP_CHARLSON_DX (CHARLSON_CATGRY, CHARLSON_WT, CONCEPT_CD)
+        SELECT DISTINCT C.CHARLSON_CATGRY, C.CHARLSON_WT, DX.CONCEPT_CD
+        FROM DT_LOYALTY_CHARLSON C
+        INNER JOIN DT_TMP_LOY_CONCEPT DX
+            ON (DX.CONCEPT_PATH LIKE '\ACT\Diagnosis\ICD10%'
+                OR DX.CONCEPT_PATH LIKE '\ACT\Diagnosis\ICD9%')
+           AND DX.CONCEPT_CD LIKE C.DIAGPATTERN
+           AND DX.CONCEPT_CD NOT LIKE '%-%';
+    END IF;
+
+    SELECT COUNT(DISTINCT CONCEPT_CD), COUNT(DISTINCT CHARLSON_CATGRY)
+    INTO V_CHARLSON_CODE_COUNT, V_CHARLSON_CATEGORY_COUNT
+    FROM DT_TMP_CHARLSON_DX;
+
+    SELECT COUNT(*) INTO V_CHARLSON_PATTERN_COUNT FROM DT_LOYALTY_CHARLSON;
+
+    DBMS_OUTPUT.PUT_LINE('Charlson metadata discovery - Diagnosis ontology tables: ' ||
+        TO_CHAR(V_ONTOLOGY_TABLE_COUNT));
+    DBMS_OUTPUT.PUT_LINE('Charlson diagnosis map - Reference patterns: ' ||
+        TO_CHAR(V_CHARLSON_PATTERN_COUNT) || ' - Fact concept IDs: ' ||
+        TO_CHAR(V_CHARLSON_CODE_COUNT) || ' - Categories: ' ||
+        TO_CHAR(V_CHARLSON_CATEGORY_COUNT));
+
+    IF V_CHARLSON_CODE_COUNT = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Warning: no Charlson diagnosis concepts matched the installed ontology; feature flags will be zero and CHARLSON_INDEX will contain age points only.');
+    END IF;
 
     INSERT INTO DT_TMP_CHARLSON_VISIT_BASE
     WITH
@@ -610,6 +837,15 @@ BEGIN
         EXTRACT (MINUTE FROM (LOCALTIMESTAMP - V_STEP_TS))*60+
         ROUND(EXTRACT(SECOND FROM (LOCALTIMESTAMP - V_STEP_TS))*1000);
     DBMS_OUTPUT.PUT_LINE('Charlson Index and weighted flags - Rows: ' || TO_CHAR(v_rows) || '- Total Execution (ms)' || TO_CHAR(v_endruntime_ms) || ' - Step Runtime (ms): ' || TO_CHAR(v_stepruntime_ms));
+
+    SELECT COUNT(*) INTO V_CHARLSON_FLAG_PATIENTS
+    FROM DT_TMP_COHORT_CHARLSON
+    WHERE MI + CHF + CVD + PVD + DEMENTIA + COPD + RHEUMDIS + PEPULCER
+        + MILDLIVDIS + DIABETES_NOCC + DIABETES_WTCC + HEMIPARAPLEG
+        + RENALDIS + CANCER + MSVLIVDIS + METASTATIC + AIDSHIV > 0;
+
+    DBMS_OUTPUT.PUT_LINE('Charlson diagnosis matches - Patients with one or more feature flags: ' ||
+        TO_CHAR(V_CHARLSON_FLAG_PATIENTS));
 
     -- CHARLSON 10YR PROB MEDIAN/MEAN/MODE/STDEV
     V_STEP_TS := LOCALTIMESTAMP;
