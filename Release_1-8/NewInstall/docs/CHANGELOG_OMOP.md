@@ -1,11 +1,46 @@
-# Changelog: SQL Server ACT-OMOP loyalty cohort support
+# Changelog: ACT-OMOP loyalty cohort support
 
 This changelog records the changes made to run the Digital Twin loyalty cohort
-procedure against an ACT-OMOP installation on Microsoft SQL Server. Oracle and
-the shared i2b2-OMOP implementation were intentionally left unchanged.
+procedure against ACT-OMOP installations. The shared i2b2-OMOP implementation
+is intentionally left unchanged.
 
 The work is currently maintained on the `loyalty-omop` branch and is not
 assigned a package release number yet.
+
+## Unreleased — Oracle ACT-OMOP support
+
+- Added an Oracle `00_dt_loyaltycohort_prep_omop.sql` that creates the minimal
+  three-column `OBSERVATION_FACT` compatibility view while preserving an
+  existing queryable table, view, or synonym.
+- Added checks for all 12 standard and nonstandard ACT-OMOP fact-domain views;
+  `VISIT_NS_VIEW` remains deliberately excluded.
+- Added the indexed `DT_TMP_LOY_CONCEPT` Oracle working table.
+- Populated the Oracle unified concept map dynamically from
+  `CONCEPT_DIMENSION`, active `TABLE_ACCESS` ontology tables, or both.
+- Added support for local objects, schema-qualified objects, and synonyms.
+  Database-link ontology names are rejected explicitly.
+- Replaced hardcoded `ACT_VISIT_DETAILS_V41` queries with unified concept-map
+  lookups and normalized visit-code comparisons.
+- Added visit-feature runtime checkpoints.
+- Normalized conventional i2b2 sex codes and OMOP gender concept IDs `8507`
+  and `8532`.
+- Corrected missing Oracle birth dates so they remain null and reach the
+  intended null-age exclusion rather than becoming age zero.
+- Reworked Oracle Charlson mapping to match `I2B2_ACT_BASECODE` and translate
+  to both `OMOP_S_CONCEPT_ID` and `OMOP_NS_CONCEPT_ID`, with a conventional
+  i2b2 fallback.
+- Added Oracle Charlson discovery, mapping, and patient-match checkpoints.
+- Added `validate_dt_loyaltycohort_omop.sql` for Oracle prerequisites, fact and
+  patient coverage, ontology paths, visit codes, and Charlson mappings.
+- Added `count_dt_loyalty_nonzero_results.sql` to report nonzero numeric and
+  populated text/date cell counts for both Oracle loyalty result tables, with
+  an equivalent SQL Server validation script.
+- Added Oracle versions of both aggregate CSV extraction queries used by the
+  Loyalty × Health Burden Atlas visualization.
+- Verified that the existing Ant procedure installer sorts scripts
+  lexicographically, so the numeric prep prefix provides deterministic order.
+- Retained the existing Oracle shared-working-table and implicit-commit model;
+  concurrent loyalty procedure executions remain unsupported.
 
 ## Unreleased — SQL Server ACT-OMOP support
 
@@ -203,4 +238,3 @@ change.
 - `b6a9c0a` — Support Charlson when concept table is not a physical table in
   this database
 - `5333fd9` — Add the loyalty output visualization
-

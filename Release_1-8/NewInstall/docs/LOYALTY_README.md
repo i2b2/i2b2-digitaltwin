@@ -1,62 +1,94 @@
-# SQL Server loyalty cohort
+# Loyalty usage
 
-`USP_DT_LOYALTYCOHORT` identifies patients whose longitudinal i2b2 record is
-likely to be sufficiently complete for follow-up analyses. It calculates 20
-binary indicators over a patient-specific lookback period, combines them into a
-published loyalty score, identifies the highest-scoring fifth of each cohort,
-and calculates a Charlson comorbidity profile.
+Install and run `USP_DT_LOYALTYCOHORT` on Oracle or SQL Server with conventional
+i2b2 or ACT-OMOP. The procedure evaluates a supplied patient cohort and writes
+loyalty scores, Charlson profiles, and aggregate summaries.
 
-The method is described in:
+For eligibility rules, feature definitions, scoring, and implementation
+differences, see [architecture and process](LOYALTY_ARCHITECTURE_README.md).
 
-> Klann JG, Henderson DW, Morris M, et al. A broadly applicable approach to
-> enrich electronic-health-record cohorts by identifying patients with complete
-> data: a multisite evaluation. *JAMIA*. 2023. doi:10.1093/jamia/ocad166
+## Choose your setup
 
-This document describes the SQL Server implementation. The procedure supports
-conventional i2b2 and the ACT-OMOP compatibility setup documented below.
+| Database and model | Source prerequisites | Cohort input | Preparation |
+| --- | --- | --- | --- |
+| SQL Server, i2b2 | Conventional fact, patient, visit, and ontology objects | Table-valued parameter | Existing physical fact table is preserved |
+| SQL Server, ACT-OMOP | Standard ACT-OMOP compatibility views and ontology registration | Table-valued parameter | Run SQL Server OMOP prep before the procedure |
+| Oracle, i2b2 | Conventional fact, patient, visit, and ontology objects | Persistent cohort-filter table | Existing queryable fact object is preserved |
+| Oracle, ACT-OMOP | Standard ACT-OMOP compatibility views and ontology registration | Persistent cohort-filter table | Run Oracle OMOP prep before the procedure |
 
-## What the procedure does
+ACT-OMOP here means the ACT compatibility layer over OMOP, not a bare OMOP CDM.
+The scripts expect `PATIENT_DIMENSION`, `VISIT_DIMENSION`, ontology metadata
+through `CONCEPT_DIMENSION` and/or `TABLE_ACCESS`, and a fact interface.
+The prep scripts require standard and nonstandard condition, drug, device,
+measurement, observation, and procedure views when creating that interface.
 
-For every `(PATIENT_NUM, COHORT_NAME, INDEX_DT)` supplied by the caller, the
-procedure:
+## Installation
 
-1. Resolves the configured ontology paths to fact and visit codes.
-2. Applies the initial patient-inclusion rules.
-3. Calculates age and sex from `PATIENT_DIMENSION`.
-4. Calculates 20 loyalty feature flags during the lookback period.
-5. Applies the coefficients in `DT_LOYALTY_PSCOEFF` to produce a loyalty score.
-6. Finds the top score quintile within the cohort and age stratum.
-7. Calculates diagnosis-based Charlson flags and an age-adjusted Charlson index.
-8. Replaces the matching slice in the three persistent result tables.
-9. Optionally returns the shareable summary rows to the caller.
+Use the platform-specific files in the
+[script inventory](LOYALTY_ARCHITECTURE_README.md#script-responsibilities).
 
-The procedure does not create the input cohort. It evaluates a cohort supplied
-through the `UDT_DT_LOYALTY_COHORTFILTER` table type.
+1. Establish the conventional i2b2 objects or install/link the standard ACT-OMOP
+   compatibility views and ontology objects. Confirm the procedure owner can
+   read them. Oracle requires direct grants or local synonyms backed by suitable
+   privileges; role-only privileges are insufficient for stored procedure SQL.
+2. For a new installation, run the matching Digital Twin schema script to
+   create its tables and, on SQL Server, the cohort-filter table type. On an
+   existing installation, review schema changes instead of blindly rerunning
+   `CREATE` statements against populated objects.
+3. [Load reference data](#reference-data) using the matching inserts or CSVs.
+4. For ACT-OMOP, run the matching `00_dt_loyaltycohort_prep_omop.sql`.
+5. Install the matching `usp_dt_loyaltycohort.sql`. The procedure installer uses
+   lexical ordering, so the `00_` prep runs first when installing the directory.
+6. Run the appropriate [validation checks](#validation-and-troubleshooting),
+   then execute a small cohort and inspect the results before a full run.
 
-## Required objects
+SQL Server prep preserves a physical `OBSERVATION_FACT` table but rebuilds an
+existing view after validating the source views; other existing object types
+are rejected. Oracle prep skips creation whenever `OBSERVATION_FACT` is already
+queryable, including through a synonym. Review an existing custom view before
+running prep. Neither prep script replaces a physical i2b2 fact table.
 
-The Digital Twin installation creates or loads:
+SQL Server supports qualified ontology objects and synonyms, including
+cross-database references. Oracle supports local/schema-qualified objects and
+synonyms; database-link ontology names are not supported.
 
-- `dbo.UDT_DT_LOYALTY_COHORTFILTER`
-- `dbo.DT_LOYALTY_PATHS`
-- `dbo.DT_LOYALTY_PSCOEFF`
-- `dbo.DT_LOYALTY_CHARLSON`
-- `dbo.DT_LOYALTY_RESULT`
-- `dbo.DT_LOYALTY_RESULT_SUMMARY`
-- `dbo.DT_LOYALTY_RESULT_CHARLSON`
-- `dbo.USP_DT_LOYALTYCOHORT`
+## Reference data
 
-The procedure reads these i2b2-compatible objects:
+Load `DT_LOYALTY_PATHS`, `DT_LOYALTY_PSCOEFF`, and `DT_LOYALTY_CHARLSON` from the
+[SQL Server inserts](../Crcdata/act/scripts/sqlserver/insert_loyalty_ref_sqlserver.sql)
+or [Oracle inserts](../Crcdata/act/scripts/oracle/insert_loyalty_ref_oracle.sql).
+These references are used with both i2b2 and ACT-OMOP.
 
-- `dbo.OBSERVATION_FACT`
-- `dbo.PATIENT_DIMENSION`
-- `dbo.VISIT_DIMENSION`
-- `dbo.CONCEPT_DIMENSION`, `dbo.TABLE_ACCESS`, or both
+For CSV loading, use the [reference file manifest](LOYALTY_REFERENCE_CSV_README.md).
+Paths and coefficients are shared. Choose `dt_loyalty_charlson_sqlserver.csv`
+for SQL Server or `dt_loyalty_charlson.csv` for Oracle; do not load both.
 
-Tables registered through `TABLE_ACCESS` may be local tables, views, synonyms,
-or qualified objects in another schema or database.
+1. Create the target tables using the applicable database schema script before
+   importing. The CSVs contain data only.
+2. Use UTF-8 encoding, a comma delimiter, and a double-quote text qualifier.
+   The first row contains column names; map by these names and skip it as data.
+3. Import empty fields as SQL `NULL`. Preserve backslashes literally; they are
+   part of the ontology paths, not escape characters.
+4. Import `CHARLSON_WT` and `COEFF` as numbers, using a period as the decimal
+   separator. All other columns are text. Preserve codes, punctuation, spaces,
+   and trailing zeros within codes exactly.
+5. Use these files as an alternative to the corresponding inserts. If inserts
+   already ran or partially succeeded, reconcile existing rows before importing
+   to avoid duplicate data or key conflicts. Commit the import as required by
+   your database client and check the loaded row counts.
+
+The Oracle reference now contains 496 prefix patterns instead of the former
+4,435 enumerated codes. Replace the old reference set when upgrading, preserving
+intentional local customizations; do not append the new set. Revalidate mapping
+coverage because prefixes may include codes absent from the old enumeration.
+
+Sites may need additional local ontology paths or visit codes. Follow the
+[mapping rules](LOYALTY_ARCHITECTURE_README.md#ontology-mapping), and validate
+local coverage after changing the ontology or reference data.
 
 ## Parameters
+
+### SQL Server parameters
 
 | Parameter | Default | Meaning |
 | --- | ---: | --- |
@@ -70,201 +102,35 @@ or qualified objects in another schema or database.
 `@SITE` is descriptive. Source-table filtering is determined by the patient
 numbers and dates in `@COHORT_FILTER`, not by a site column in the i2b2 tables.
 
-## Measurement period
+### Oracle parameters
 
-All general loyalty features use the following patient-specific interval:
-
-```sql
-START_DATE >= DATEADD(year, -@LOOKBACK_YEARS, INDEX_DT)
-AND START_DATE < DATEADD(day, 1, INDEX_DT)
-```
-
-The interval begins exactly `@LOOKBACK_YEARS` before `INDEX_DT` and includes the
-entire index date. Using an exclusive upper bound avoids losing records whose
-timestamps occur later on the index date.
-
-Charlson uses a different interval, described under **Charlson calculation**.
-
-## Patient inclusion and exclusion
-
-Patient selection happens in two stages.
-
-### Initial `#INCLPAT` population
-
-A patient must:
-
-1. Appear in `@COHORT_FILTER`.
-2. Have at least one `OBSERVATION_FACT` record during the measurement period.
-
-When `@DEMOGRAPHIC_FACTS = 0`, any observation fact qualifies. When
-`@DEMOGRAPHIC_FACTS = 1`, the qualifying set excludes concepts found under
-`\ACT\Demographics%`; a patient with demographic facts only is not included.
-
-The ACT-OMOP `OBSERVATION_FACT` compatibility view supplied with this package
-does not include demographic domains, so `@DEMOGRAPHIC_FACTS = 0` is normally
-appropriate for that setup.
-
-### Final cohort requirements
-
-An initially included patient must also have:
-
-- At least one `VISIT_DIMENSION` record during the measurement period. This is
-  enforced by the inner join used to calculate `LAST_VISIT`.
-- A matching `PATIENT_DIMENSION` record.
-- A usable birth date, so that age can be calculated.
-- An age greater than 18 on `INDEX_DT`.
-
-The visit that anchors inclusion does not need to match an inpatient,
-outpatient, or emergency-department feature code. Those mappings control the
-three visit feature flags; any visit can establish `LAST_VISIT` and final
-inclusion.
-
-The following historical filters are present as comments but are not active:
-
-- The multi-visit or “non-ephemeral patient” filter is disabled. A patient does
-  not need two or more encounters to enter the cohort.
-- Patients with a non-null death date are no longer excluded.
-
-In plain language, the active rule is: start with the supplied cohort, require
-at least one fact and one visit in the lookback period, require usable patient
-demographics, and exclude patients aged 18 or younger.
-
-## Loyalty features
-
-The procedure produces the following 20 binary features:
-
-| Group | Features | Rule |
+| Parameter | Default | Meaning |
 | --- | --- | --- |
-| Diagnosis activity | `NUM_DX1`, `NUM_DX2` | Exactly one distinct diagnosis date for `NUM_DX1`; at least two for `NUM_DX2`. |
-| Medication activity | `MED_USE1`, `MED_USE2` | Exactly one distinct medication date for `MED_USE1`; at least two for `MED_USE2`. |
-| Preventive care | `MAMMOGRAPHY`, `PAP_TEST`, `PSA_TEST`, `COLONOSCOPY`, `FECAL_OCCULT_TEST`, `FLU_SHOT`, `PNEUMOCOCCAL_VACCINE` | At least one mapped fact. |
-| Monitoring and examination | `BMI`, `A1C`, `MEDICAL_EXAM` | At least one mapped fact. |
-| Visit activity | `INP1_OPT1_VISIT`, `OPT2_VISIT`, `ED_VISIT` | At least one mapped inpatient/outpatient visit; at least two mapped outpatient visits; or at least one mapped ED visit, respectively. |
-| Physician visits | `MDVISIT_PNAME2`, `MDVISIT_PNAME3` | Exactly two distinct physician-visit dates; or at least three distinct dates, respectively. |
-| Composite | `ROUTINE_CARE_2` | At least two of the configured routine-care facts are present. |
+| `P_SITE VARCHAR` | Required | Descriptive site label; keep within the result tables' 10-character limit. Does not filter source facts. |
+| `P_LOOKBACK_YEARS INT` | `1` | Years before each input index date. |
+| `P_DEMOGRAPHIC_FACTS NUMBER` | `0` | Use `1` to exclude demographic-only facts from initial inclusion. |
+| `P_GENDERED NUMBER` | `0` | Use `1` for sex-specific denominators in the relevant preventive-care summaries. |
+| `P_OUTPUT NUMBER` | `1` | Use `1` for an implicit summary result set, or `0` to query persistent results yourself. |
 
-`ROUTINE_CARE_2` considers medical examination, mammography, PSA testing,
-colonoscopy, fecal occult blood testing, influenza vaccination, pneumococcal
-vaccination, A1C, and BMI. Pap testing is a standalone feature but is not part
-of this composite in the current SQL implementation.
+Oracle has no cohort-filter argument: it reads all rows of
+`DT_LOYALTY_COHORTFILTER`. Use `0`/`1` for the numeric switches. With the supplied
+ACT-OMOP fact view, the demographic-facts switch normally remains `0` on either
+platform because that view does not include demographic domains.
 
-Diagnosis, medication, and physician-visit thresholds count distinct calendar
-dates. Other fact-based features test raw fact presence. Visit features are
-calculated from `VISIT_DIMENSION` rather than `OBSERVATION_FACT`.
+## Prepare the cohort
 
-## Ontology mapping
+Supply `PATIENT_NUM`, `COHORT_NAME`, and `INDEX_DT` for each intended input row.
+Use patient identifiers from the installed patient/fact interfaces, date-only
+index values, and enough preceding data for the chosen lookback. Avoid duplicate
+input rows and use separate cohort names/runs for distinct analyses. The site
+label is descriptive; it does not select a site from the source database.
 
-`DT_LOYALTY_PATHS` associates each feature with an ontology path. At runtime,
-the procedure expands the configured path to all matching child concepts.
-
-On conventional i2b2 installations, concepts are read from
-`CONCEPT_DIMENSION`. ACT-OMOP commonly distributes concepts across the ontology
-tables registered in `TABLE_ACCESS`; the procedure merges both sources when
-both exist. This is important for hybrid installations in which a unified
-`CONCEPT_DIMENSION` omits visit concepts.
-
-Local codes can be added to `DT_LOYALTY_PATHS` using `CODE_TYPE = 'SITE'` and
-`SITE_SPECIFIC_CODE`. Review local additions carefully because they directly
-change feature classification.
-
-## Loyalty score and cutoff
-
-Each true feature contributes its coefficient from `DT_LOYALTY_PSCOEFF`. The
-score begins with an intercept of `-0.010`:
-
-```text
-PREDICTED_SCORE = -0.010 + sum(feature flag × feature coefficient)
-```
-
-Despite its historical column name, `PREDICTED_SCORE` should be described as a
-loyalty score unless it has been calibrated as a probability for the population
-being studied.
-
-The procedure divides patients into five groups ordered from highest to lowest
-score. It calculates a cutoff separately for each:
-
-- Cohort
-- Age stratum (`UNDER 65`, `OVER 65`, and the combined `ALL PATIENTS` summary)
-
-The minimum score in the highest-scoring quintile is stored as
-`PREDICTIVE_SCORE_CUTOFF`. Summary rows with `CUTOFF_FILTER_YN = 'Y'` describe
-patients at or above this cutoff. Rows with `CUTOFF_FILTER_YN = 'N'` describe
-the full eligible cohort.
-
-With small cohorts or tied scores, the retained proportion may not be exactly
-20 percent.
-
-## Charlson calculation
-
-Charlson is calculated after the loyalty cohort is assembled.
-
-For each patient, diagnosis facts are examined from one year before
-`LAST_VISIT` through the end of `LAST_VISIT`:
-
-```sql
-START_DATE >= DATEADD(year, -1, LAST_VISIT)
-AND START_DATE < DATEADD(day, 1, LAST_VISIT)
-```
-
-This is deliberately different from the general loyalty measurement period,
-which is anchored on `INDEX_DT` and uses `@LOOKBACK_YEARS`.
-
-`DT_LOYALTY_CHARLSON` contains ICD-9-CM and ICD-10-CM patterns and weights. On
-ACT-OMOP, the procedure matches those patterns to `I2B2_ACT_BASECODE`, then
-maps the result to both `OMOP_S_CONCEPT_ID` and `OMOP_NS_CONCEPT_ID` so that
-standard and source condition facts are recognized.
-
-The diagnosis weights are combined with age points:
-
-| Age | Points |
-| --- | ---: |
-| Under 50 | 0 |
-| 50–59 | 1 |
-| 60–69 | 2 |
-| 70 or older | 3 |
-
-More severe liver disease supersedes mild liver disease, and diabetes with
-complications supersedes diabetes without complications in the final index.
-
-Consequently, `CHARLSON_INDEX` can be nonzero even when every diagnosis feature
-is zero: the nonzero value may consist entirely of age points. Runtime messages
-report the number of ontology tables found, mapped fact concept IDs, mapped
-categories, and patients with one or more diagnosis feature flags.
-
-## Output tables
-
-### `DT_LOYALTY_RESULT`
-
-One patient-level row per result slice, containing demographics, index date,
-the 20 feature flags, and `PREDICTED_SCORE`.
-
-### `DT_LOYALTY_RESULT_CHARLSON`
-
-One patient-level row containing `LAST_VISIT`, the age-adjusted Charlson index,
-estimated 10-year probability, and the 17 weighted Charlson category flags.
-
-### `DT_LOYALTY_RESULT_SUMMARY`
-
-Aggregated age-stratified results for the complete cohort and the
-highest-scoring group. It includes patient counts, feature percentages,
-Charlson statistics, the score cutoff, and runtime information. The procedure
-clears `TOTAL_SUBJECTS` from the `PERCENT SUBJECTS` rows after calculating the
-population percentages to reduce accidental disclosure.
-
-Before inserting results, the procedure deletes existing rows with the same:
-
-- Site
-- Cohort name
-- Lookback length
-- Gender-denominator setting
-
-Rerunning the same slice therefore replaces it rather than appending another
-copy. Other result slices are preserved.
-
-These tables contain patient-level data unless explicitly aggregated. Apply
-institutional access and disclosure controls before exporting them.
+The same platform-specific call works with i2b2 and ACT-OMOP after installation.
+Replace `MY_COHORT` with your cohort table or query and adjust the example dates.
 
 ## Example execution
+
+### SQL Server
 
 ```sql
 DECLARE @COHORT dbo.UDT_DT_LOYALTY_COHORTFILTER;
@@ -285,28 +151,106 @@ EXEC dbo.USP_DT_LOYALTYCOHORT
 Every cohort-filter record requires its own `INDEX_DT`. Confirm that the source
 data extend far enough before that date to support the requested lookback.
 
-## ACT-OMOP installation
+### Oracle
 
-For SQL Server ACT-OMOP:
+Run this example in the schema containing the installed Digital Twin tables and
+procedure. Replace `MY_COHORT` with your patient cohort table or query, and adjust
+the site label, index date, and lookback period for your data.
 
-1. Build or link the standard ACT-OMOP compatibility views.
-2. Create the Digital Twin tables and table type.
-3. Load the loyalty paths, coefficients, and Charlson reference mappings.
-4. Run `00_dt_loyaltycohort_prep_omop.sql`.
-5. Install `usp_dt_loyaltycohort.sql`.
-6. Run `../../validation/sqlserver/validate_dt_loyaltycohort_omop.sql`.
-7. Test a small cohort before a production run.
+Oracle reads every row in the persistent `DT_LOYALTY_COHORTFILTER` table; there
+is no cohort-filter parameter. The example clears that input table before loading
+the intended run. Confirm that its existing contents are no longer needed first.
+The input and working tables are shared, so do not prepare or execute concurrent
+loyalty runs in the same schema.
 
-The prep script creates a limited three-column `OBSERVATION_FACT` compatibility
-view over the ACT-OMOP domain views. It does not overwrite a real
-`OBSERVATION_FACT` table and accepts required source objects exposed as views or
-synonyms.
+```sql
+-- SQL*Plus / SQLcl, or SQL Developer's Run Script mode.
+SET SERVEROUTPUT ON;
 
-## Runtime checkpoints and troubleshooting
+DELETE FROM DT_LOYALTY_COHORTFILTER;
+
+INSERT INTO DT_LOYALTY_COHORTFILTER (PATIENT_NUM, COHORT_NAME, INDEX_DT)
+SELECT DISTINCT PATIENT_NUM, 'Example cohort', DATE '2011-01-01'
+FROM MY_COHORT;
+
+COMMIT;
+
+BEGIN
+  USP_DT_LOYALTYCOHORT(
+    P_SITE              => 'SITE1',
+    P_LOOKBACK_YEARS     => 5,
+    P_DEMOGRAPHIC_FACTS  => 0,
+    P_GENDERED          => 0,
+    P_OUTPUT            => 0
+  );
+END;
+/
+
+COMMIT;
+
+SELECT *
+FROM DT_LOYALTY_RESULT_SUMMARY
+WHERE SITE = 'SITE1'
+  AND COHORT_NAME = 'Example cohort'
+  AND LOOKBACK_YR = 5
+  AND GENDER_DENOMINATORS_YN = 'N';
+```
+
+Each input row needs an `INDEX_DT` with enough preceding data for the lookback.
+`P_OUTPUT => 0` suppresses the implicit result set; the example queries the stored
+summary directly. Set `P_OUTPUT => 1` to return the summary through a client that
+supports Oracle implicit result sets. Persistent results are populated either
+way. The procedure performs DDL with implicit commits, so the run cannot be
+treated as a single rollbackable transaction.
+
+## Results and reruns
+
+| Table | Use |
+| --- | --- |
+| `DT_LOYALTY_RESULT` | Patient features and loyalty scores |
+| `DT_LOYALTY_RESULT_CHARLSON` | Patient Charlson indices and weighted category flags |
+| `DT_LOYALTY_RESULT_SUMMARY` | Cohort summaries with and without the loyalty cutoff |
+
+To inspect a stored SQL Server summary:
+
+```sql
+SELECT *
+FROM dbo.DT_LOYALTY_RESULT_SUMMARY
+WHERE SITE = 'SITE1'
+  AND COHORT_NAME = 'Example cohort'
+  AND LOOKBACK_YR = 5
+  AND GENDER_DENOMINATORS_YN = 'N';
+```
+
+The Oracle example includes the equivalent query. Patient-level tables use
+`LOOKBACK_YEARS` rather than the summary's `LOOKBACK_YR`. Summary
+`CUTOFF_FILTER_YN = 'Y'` selects the high-loyalty subset, and `'N'` selects the
+full eligible cohort. See [output definitions](LOYALTY_ARCHITECTURE_README.md#output-tables)
+for details, including age strata.
+
+Rerunning a site/cohort/lookback/gender-denominator slice replaces that slice;
+the index date is not an additional replacement key. Coordinate runs that
+target the same slice. Oracle requires serial runs in a schema even for
+different cohorts because its input and working tables are shared. Its DDL
+also causes implicit commits. Inspect partial results before retrying a failed
+run; do not assume rollback restores the previous state.
+
+Patient result tables contain patient-level data. Apply institutional access
+and disclosure controls before exporting them or aggregate summaries.
+
+## Validation and troubleshooting
+
+For ACT-OMOP, run the
+[SQL Server validation script](../Crcdata/scripts/validation/sqlserver/validate_dt_loyaltycohort_omop.sql)
+or [Oracle validation script](../Crcdata/scripts/validation/oracle/validate_dt_loyaltycohort_omop.sql).
+These scripts inspect prerequisites, fact dates, ontology coverage, and visit
+and Charlson mappings. They are tailored to ACT-OMOP; for conventional i2b2,
+verify its source objects and mappings and inspect a small procedure run rather
+than treating missing OMOP-specific columns as installation failures.
 
 Important informational messages include:
 
-- `Finish #INCLPAT`: patients having a qualifying observation fact.
+- Initial inclusion (`#INCLPAT` on SQL Server, `DT_TMP_INCLPAT` on Oracle): patients having a qualifying observation fact.
 - `Cohort and Visit Type variables`: patients surviving the visit and patient
   dimension joins.
 - `Visit flag checkpoint`: patients receiving each visit feature flag.
@@ -320,15 +264,17 @@ Common interpretations:
 
 | Observation | Likely explanation |
 | --- | --- |
-| `#INCLPAT` is zero | No facts fall inside the patient-specific lookback window, or the supplied index dates are outside the data. |
-| `#INCLPAT` is nonzero but the cohort is zero | No visits fall inside the same window, patient dimension rows are missing, or all remaining patients have unusable birth dates or are pediatric. |
+| Initial inclusion is zero | No facts fall inside the patient-specific lookback window, or the supplied index dates are outside the data. |
+| Initial inclusion is nonzero but the cohort is zero | No visits fall inside the same window, patient dimension rows are missing, or all remaining patients have unusable birth dates or are pediatric. |
 | All three visit flags are zero | Visit ontology codes do not match `VISIT_DIMENSION.INOUT_CD`, even though general visits may exist. |
 | Charlson fact concept IDs are zero | The ICD ontology tables or their OMOP mapping columns are unavailable, or reference patterns do not match the installed ontology. |
 | Charlson concepts map but patient flags are zero | No mapped diagnosis facts occur during the year before `LAST_VISIT`, or condition fact codes do not match the ontology IDs. |
 | Charlson index is nonzero but all diagnosis flags are zero | The index contains age points only. |
 
-Use `../../validation/sqlserver/validate_dt_loyaltycohort_omop.sql` to inspect
-prerequisites, fact dates, path coverage, and visit-code matches.
+Oracle progress messages require server output to be enabled. The exact
+checkpoint wording differs between platforms. Examples here were checked
+against the repository's procedure signatures and schema; they have not been
+executed against a live Oracle or SQL Server database as part of this doc update.
 
 ## Known limitations
 
@@ -343,9 +289,23 @@ prerequisites, fact dates, path coverage, and visit-code matches.
 - Ontology versions and local coding practices can change feature coverage.
   Validate mappings whenever installing a new ontology release.
 
-## Visualization
+- Oracle and SQL Server currently differ in distinct-date counting and date
+  arithmetic at some boundaries. Review the
+  [measurement and feature details](LOYALTY_ARCHITECTURE_README.md#measurement-period)
+  before interpreting cross-platform differences.
 
-`../../visualization` contains two aggregate SQL exports and a standalone
-browser visualization that combines `DT_LOYALTY_RESULT` with
-`DT_LOYALTY_RESULT_CHARLSON`. The exports omit patient identifiers and suppress
-small groups using a configurable disclosure threshold.
+## Visualization and further reading
+
+The [visualization guide](../Crcdata/scripts/visualization/README.md) describes
+the aggregate exports and browser-based Loyalty × Health Burden Atlas. The
+supplied extract queries are SQL Server-specific; Oracle equivalents are not
+provided. Follow that guide for suppression thresholds and export instructions.
+
+- [Architecture and process](LOYALTY_ARCHITECTURE_README.md)
+- [Reference CSV manifest](LOYALTY_REFERENCE_CSV_README.md)
+- [Historical ACT-OMOP changelog](CHANGELOG_OMOP.md)
+- [Digital Twin package documentation](https://community.i2b2.org/wiki/display/BUN/Digital+Twin+Technologies)
+- [Computed-phenotype installation documentation](https://docs.google.com/document/d/1Th98QZimCQ4w-cj_15lDc6zYUiwypLs7sQ0dioBsY-M/edit#heading=h.hn0g2vivalv9)
+
+The scripts are maintained by the i2b2 team. Report issues and suggestions in
+the [i2b2 Core Software project](http://community.i2b2.org/jira/secure/Dashboard.jspa).
